@@ -81,14 +81,14 @@ class PathwayNetwork(nn.Module):
 
 ### 1.4 FixedThresholdMechanism
 
-固定阈值机制，确保机制不变性。
+固定阈值机制，确保机制不变性。**支持多分类**。
 
 ```python
 class FixedThresholdMechanism(nn.Module):
     def __init__(self, n_classes=2):
         """
         参数:
-            n_classes: 类别数量
+            n_classes: 类别数量（2-N的任意整数）
         """
         
     def forward(self):
@@ -96,18 +96,26 @@ class FixedThresholdMechanism(nn.Module):
         返回:
             thresholds: 分类阈值，形状为 [n_classes-1]
         """
+        
+    def get_thresholds_info(self):
+        """
+        获取阈值的详细信息（用于调试和可视化）
+        
+        返回:
+            dict: 包含阈值和相关信息的字典
+        """
 ```
 
 ### 1.5 ClassificationHead
 
-分类头，计算最终的分类概率。
+分类头，计算最终的分类概率。**支持多分类**。
 
 ```python
 class ClassificationHead(nn.Module):
     def __init__(self, n_classes=2):
         """
         参数:
-            n_classes: 类别数量
+            n_classes: 类别数量（2-N的任意整数）
         """
         
     def forward(self, mu_scores, gamma_scores, path_probs, thresholds):
@@ -127,7 +135,7 @@ class ClassificationHead(nn.Module):
 
 ### 2.1 CAACModel
 
-完整的CAAC-SPSFT二分类模型。
+完整的CAAC-SPSFT分类模型，支持二分类和多分类。
 
 ```python
 class CAACModel(nn.Module):
@@ -140,24 +148,9 @@ class CAACModel(nn.Module):
             representation_dim: 表征维度
             latent_dim: 潜在变量维度
             n_paths: 路径数量
-            n_classes: 类别数量
-            feature_hidden_dims: 特征网络隐藏层维度列表
-            abduction_hidden_dims: 推断网络隐藏层维度列表
-        """
-        
-    def forward(self, x):
-        """
-        参数:
-            x: 输入特征，形状为 [batch_size, input_dim]
-            
-        返回:
-            class_probs: 分类概率，形状为 [batch_size, n_classes]
-            location_param: 位置参数，形状为 [batch_size, latent_dim]
-            scale_param: 尺度参数，形状为 [batch_size, latent_dim]
-            mu_scores: 路径特定的位置参数，形状为 [batch_size, n_paths]
-            gamma_scores: 路径特定的尺度参数，形状为 [batch_size, n_paths]
-            path_probs: 路径选择概率，形状为 [batch_size, n_paths]
-            thresholds: 分类阈值，形状为 [n_classes-1]
+            n_classes: 类别数量（2-N的任意整数）
+            feature_hidden_dims: 特征网络隐藏层维度
+            abduction_hidden_dims: 推断网络隐藏层维度
         """
 ```
 
@@ -182,112 +175,67 @@ class CAACModelWrapper:
             representation_dim: 表征维度
             latent_dim: 潜在变量维度
             n_paths: 路径数量
-            n_classes: 类别数量
-            feature_hidden_dims: 特征网络隐藏层维度列表
-            abduction_hidden_dims: 推断网络隐藏层维度列表
+            n_classes: 类别数量（2-N的任意整数）
+            feature_hidden_dims: 特征网络隐藏层维度
+            abduction_hidden_dims: 推断网络隐藏层维度
             lr: 学习率
-            batch_size: 批量大小
-            epochs: 训练轮数
-            device: 设备（'cuda'或'cpu'）
+            batch_size: 批次大小
+            epochs: 训练轮次
+            device: 计算设备
             early_stopping_patience: 早停耐心值
-            early_stopping_min_delta: 早停最小增量
-        """
-        
-    def fit(self, X_train, y_train, X_val=None, y_val=None, verbose=1):
-        """
-        训练模型
-        
-        参数:
-            X_train: 训练集特征
-            y_train: 训练集标签
-            X_val: 验证集特征
-            y_val: 验证集标签
-            verbose: 详细程度
-            
-        返回:
-            self
-        """
-        
-    def predict_proba(self, X):
-        """
-        预测概率
-        
-        参数:
-            X: 特征
-            
-        返回:
-            预测概率，形状为 [n_samples, n_classes]
-        """
-        
-    def predict(self, X):
-        """
-        预测类别
-        
-        参数:
-            X: 特征
-            
-        返回:
-            预测类别，形状为 [n_samples]
+            early_stopping_min_delta: 早停最小改善值
         """
 ```
 
-## 3. 实验工具
+## 3. 评估指标
 
-### 3.1 SyntheticBinaryClassificationGenerator
-
-二分类合成数据生成器。
+### 3.1 二分类评估
 
 ```python
-class SyntheticBinaryClassificationGenerator:
-    def __init__(self, n_samples_total=1000, n_features=10, random_state=None):
-        """
-        参数:
-            n_samples_total: 样本总数
-            n_features: 特征数量
-            random_state: 随机种子
-        """
+def evaluate_binary_classification(y_true, y_pred, y_pred_proba=None):
+    """
+    评估二分类模型性能
+    
+    参数:
+        y_true: 真实标签
+        y_pred: 预测标签
+        y_pred_proba: 预测概率 (可选，用于计算AUC)
         
-    def generate_linear(self, separation=1.0):
-        """
-        生成线性可分的二分类数据
-        
-        参数:
-            separation: 类别间的分离度
-            
-        返回:
-            X: 特征矩阵
-            y: 类别标签 (0或1)
-        """
-        
-    def generate_nonlinear(self, complexity=1.0):
-        """
-        生成非线性二分类数据
-        
-        参数:
-            complexity: 非线性复杂度
-            
-        返回:
-            X: 特征矩阵
-            y: 类别标签 (0或1)
-        """
-        
-    def inject_outliers(self, X, y, outlier_ratio=0.1):
-        """
-        注入异常值
-        
-        参数:
-            X: 特征矩阵
-            y: 类别标签
-            outlier_ratio: 异常值比例
-            
-        返回:
-            X_with_outliers: 包含异常值的特征矩阵
-            y_with_outliers: 包含异常值的类别标签
-            outlier_mask: 异常值掩码
-        """
+    返回:
+        metrics: 包含准确率、精确率、召回率、F1分数、AUC的字典
+    """
 ```
 
-### 3.2 实验函数
+### 3.2 多分类评估
+
+```python
+def evaluate_multiclass_classification(y_true, y_pred, y_pred_proba=None):
+    """
+    评估多分类模型性能
+    
+    参数:
+        y_true: 真实标签
+        y_pred: 预测标签
+        y_pred_proba: 预测概率矩阵 [n_samples, n_classes] (可选)
+        
+    返回:
+        metrics: 包含以下指标的字典：
+            - accuracy: 准确率
+            - precision_macro/weighted: 宏平均/加权平均精确率
+            - recall_macro/weighted: 宏平均/加权平均召回率
+            - f1_macro/weighted: 宏平均/加权平均F1分数
+            - precision_class_i: 每个类别的精确率
+            - recall_class_i: 每个类别的召回率
+            - f1_class_i: 每个类别的F1分数
+            - auc_ovr: One-vs-Rest AUC
+            - auc_ovo: One-vs-One AUC
+            - confusion_matrix: 混淆矩阵
+    """
+```
+
+## 4. 实验模块
+
+### 4.1 二分类实验
 
 ```python
 def run_binary_classification_experiment(
@@ -303,12 +251,34 @@ def run_binary_classification_experiment(
     """
     运行二分类实验
     
+    参数和返回值详见源码
+    """
+```
+
+### 4.2 多分类实验
+
+```python
+def run_multiclass_classification_experiment(
+    n_samples=1000,
+    n_features=10,
+    n_classes=3,
+    test_size=0.2,
+    val_size=0.2,
+    class_sep=1.0,
+    outlier_ratio=0.0,
+    random_state=42,
+    model_params=None
+):
+    """
+    运行多分类实验
+    
     参数:
         n_samples: 样本数量
         n_features: 特征数量
+        n_classes: 类别数量（3-N）
         test_size: 测试集比例
         val_size: 验证集比例
-        data_type: 数据类型 ('linear' 或 'nonlinear')
+        class_sep: 类别分离度
         outlier_ratio: 异常值比例
         random_state: 随机种子
         model_params: 模型参数字典
@@ -316,78 +286,62 @@ def run_binary_classification_experiment(
     返回:
         results: 实验结果字典
     """
-    
-def compare_with_baselines(
-    X_train, y_train, X_test, y_test,
-    caac_model=None,
-    random_state=42
-):
-    """
-    与基线方法比较
-    
-    参数:
-        X_train: 训练集特征
-        y_train: 训练集标签
-        X_test: 测试集特征
-        y_test: 测试集标签
-        caac_model: 已训练的CAAC模型 (可选)
-        random_state: 随机种子
-        
-    返回:
-        comparison_results: 比较结果字典
-    """
 ```
 
-## 4. 使用示例
+## 5. 使用示例
 
-### 4.1 基本使用
+### 5.1 二分类任务
 
 ```python
-import numpy as np
 from src.models.caac_model import CAACModelWrapper
-from src.data.synthetic import SyntheticBinaryClassificationGenerator, split_data
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
 
 # 生成数据
-generator = SyntheticBinaryClassificationGenerator(n_samples_total=1000, n_features=10)
-X, y = generator.generate_linear()
-X_train, X_val, X_test, y_train, y_val, y_test = split_data(X, y)
+X, y = make_classification(n_samples=1000, n_features=20, n_classes=2)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 # 创建并训练模型
-model = CAACModelWrapper(input_dim=10, n_paths=2)
-model.fit(X_train, y_train, X_val, y_val)
+model = CAACModelWrapper(
+    input_dim=20,
+    n_classes=2,
+    n_paths=2
+)
+model.fit(X_train, y_train)
 
 # 预测
 y_pred = model.predict(X_test)
-y_pred_proba = model.predict_proba(X_test)
-
-# 评估
-from src.utils.metrics import evaluate_binary_classification
-metrics = evaluate_binary_classification(y_test, y_pred, y_pred_proba)
-print(metrics)
+y_proba = model.predict_proba(X_test)
 ```
 
-### 4.2 运行完整实验
+### 5.2 多分类任务
 
 ```python
-from src.experiments.binary_classification import run_binary_classification_experiment, compare_with_baselines
+# 生成5分类数据
+X, y = make_classification(n_samples=2000, n_features=20, n_classes=5, n_informative=15)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-# 运行实验
-results = run_binary_classification_experiment(
-    n_samples=1000,
-    n_features=10,
-    data_type='linear',
-    outlier_ratio=0.1
+# 创建并训练模型
+model = CAACModelWrapper(
+    input_dim=20,
+    n_classes=5,
+    n_paths=5,  # 建议路径数等于类别数
+    epochs=150,
+    early_stopping_patience=15
 )
+model.fit(X_train, y_train)
 
-# 与基线方法比较
-comparison = compare_with_baselines(
-    results['data']['X_train'],
-    results['data']['y_train'],
-    results['data']['X_test'],
-    results['data']['y_test'],
-    caac_model=results['model']
-)
+# 预测
+y_pred = model.predict(X_test)
+y_proba = model.predict_proba(X_test)
 
-# 打印比较结果
-print(comparison['comparison_df'])
+# 评估
+from src.utils.metrics import evaluate_multiclass_classification
+metrics = evaluate_multiclass_classification(y_test, y_pred, y_proba)
+print(f"Accuracy: {metrics['accuracy']:.3f}")
+print(f"F1 Macro: {metrics['f1_macro']:.3f}")
 ```
+
+---
+*最后更新时间: 2025-01-20*
+*已支持多分类任务*
