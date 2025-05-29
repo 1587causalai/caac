@@ -1,8 +1,8 @@
-# 实验文档自动更新说明
+# 自动更新实验文档
 
 ## 概述
 
-项目中包含了一个自动更新实验文档的脚本 `update_experiments_doc.py`，可以从 `results/` 目录中的CSV文件自动读取最新的实验结果，并更新 `docs/experiments.md` 文档中的所有结果表格。
+项目中包含了一个自动更新实验文档的脚本 `update_experiments_doc.py`，可以从 `results/` 目录中的CSV文件自动读取最新的实验结果，并更新 `docs/experiments_synthetic.md` 文档中的所有结果表格。
 
 ## 使用方法
 
@@ -33,14 +33,14 @@ python update_experiments_doc.py
    - `results/comparison_nonlinear_outlier0.0.csv`
    - `results/comparison_nonlinear_outlier0.1.csv`
 
-2. **更新文档表格**：使用正则表达式匹配和替换 `docs/experiments.md` 中的四个实验结果表格
+2. **更新文档表格**：使用正则表达式匹配和替换 `docs/experiments_synthetic.md` 中的四个实验结果表格
 
 3. **添加时间戳**：在文档末尾添加更新时间，方便追踪文档版本
 
 ## 文件说明
 
 - `update_experiments_doc.py`：自动更新脚本
-- `docs/experiments.md`：实验结果文档（会被自动更新）
+- `docs/experiments_synthetic.md`：合成数据集实验结果文档（会被自动更新）
 - `results/`：实验输出目录，包含CSV和图像文件
 
 ## 注意事项
@@ -58,5 +58,5 @@ python update_experiments_doc.py
 已更新 linear_outlier0.1 的实验结果表格
 已更新 nonlinear_outlier0.0 的实验结果表格
 已更新 nonlinear_outlier0.1 的实验结果表格
-实验文档已更新: docs/experiments.md
+实验文档已更新: docs/experiments_synthetic.md
 实验文档更新完成！ 

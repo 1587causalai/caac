@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-自动更新experiments.md文档中的实验结果表格
+自动更新experiments_synthetic.md文档中的实验结果表格
 从results目录中的CSV文件读取最新的实验数据并更新文档
 """
 
@@ -66,8 +66,8 @@ def generate_experiment_table(df):
     return "\n".join(table_lines)
 
 def update_experiments_md(experiment_data):
-    """更新experiments.md文件"""
-    doc_file = "docs/experiments.md"
+    """更新experiments_synthetic.md文件"""
+    doc_file = "docs/experiments_synthetic.md"
     
     if not os.path.exists(doc_file):
         print(f"错误: 文档文件 {doc_file} 不存在")

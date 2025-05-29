@@ -1,0 +1,7 @@
+,accuracy,precision,recall,f1,auc_roc,train_time,model,final_epoch,best_epoch,early_stopped
+CAAC-SPSFT,1.0,1.0,1.0,1.0,1.0,0.783358,<src.models.caac_model.CAACModelWrapper object at 0x17462f8b0>,62,52,True
+LogisticRegression,1.0,1.0,1.0,1.0,1.0,0.004033,,,,
+RandomForest,1.0,1.0,1.0,1.0,1.0,0.048555,,,,
+SVM,1.0,1.0,1.0,1.0,1.0,0.002078,,,,
+XGBoost,1.0,1.0,1.0,1.0,1.0,0.011248,,,,
+MLP,1.0,1.0,1.0,1.0,1.0,0.008223,,,,

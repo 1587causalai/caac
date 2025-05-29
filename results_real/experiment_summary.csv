@@ -1,0 +1,4 @@
+Dataset,Samples,Features,CAAC_Accuracy,CAAC_F1,Best_Baseline,Best_Baseline_Accuracy
+Iris,150,4,1.0,1.0,LogisticRegression,1.0
+Breast Cancer Wisconsin,569,30,0.8771929824561403,0.8955223880597015,LogisticRegression,0.9473684210526315
+Adult (Census Income),10000,97,0.813,0.589010989010989,XGBoost,0.858

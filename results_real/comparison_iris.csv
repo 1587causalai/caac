@@ -1,0 +1,7 @@
+,accuracy,precision,recall,f1,auc_roc,train_time,model
+CAAC-SPSFT,1.0,1.0,1.0,1.0,1.0,1.114873,<src.models.caac_model.CAACModelWrapper object at 0x16df3bc40>
+LogisticRegression,1.0,1.0,1.0,1.0,1.0,0.004207,
+RandomForest,1.0,1.0,1.0,1.0,1.0,0.04706,
+SVM,1.0,1.0,1.0,1.0,1.0,0.001319,
+XGBoost,1.0,1.0,1.0,1.0,1.0,0.010095,
+MLP,1.0,1.0,1.0,1.0,1.0,0.045803,
