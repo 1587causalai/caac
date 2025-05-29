@@ -25,7 +25,13 @@ from src.experiments.multiclass_classification import (
     visualize_multiclass_results
 )
 
-def run_all_multiclass_experiments():
+def run_all_multiclass_experiments(
+    results_base_dir='results/multiclass',
+    experiment_configs_override=None,
+    outlier_ratios_override=None,
+    global_caac_model_params_override=None,
+    baseline_model_params_override=None 
+):
     """运行所有多分类实验"""
     
     # 设置随机种子
@@ -81,11 +87,16 @@ def run_all_multiclass_experiments():
         }
     ]
     
+    if experiment_configs_override is not None:
+        experiment_configs = experiment_configs_override
+        
     # 异常值比例配置
     outlier_ratios = [0.0, 0.1]  # 无异常值和10%异常值
+    if outlier_ratios_override is not None:
+        outlier_ratios = outlier_ratios_override
     
     # 创建结果目录
-    results_dir = 'results/multiclass'
+    results_dir = results_base_dir
     os.makedirs(results_dir, exist_ok=True)
     
     # 记录所有结果
@@ -96,6 +107,10 @@ def run_all_multiclass_experiments():
         print(f"Running {config['name']} Experiments")
         print(f"{'='*60}")
         
+        current_caac_params = config['model_params'].copy()
+        if global_caac_model_params_override:
+            current_caac_params.update(global_caac_model_params_override)
+
         for outlier_ratio in outlier_ratios:
             outlier_str = f"{int(outlier_ratio*100)}%" if outlier_ratio > 0 else "Clean"
             print(f"\n--- {outlier_str} Data ---")
@@ -107,7 +122,7 @@ def run_all_multiclass_experiments():
                 n_classes=config['n_classes'],
                 class_sep=config['class_sep'],
                 outlier_ratio=outlier_ratio,
-                model_params=config['model_params'],
+                model_params=current_caac_params,
                 random_state=42
             )
             
@@ -119,7 +134,8 @@ def run_all_multiclass_experiments():
                 results['data']['y_test'],
                 caac_model=results['model'],
                 n_classes=config['n_classes'],
-                random_state=42
+                random_state=42,
+                baseline_params_override=baseline_model_params_override
             )
             
             # 打印比较结果
@@ -226,18 +242,44 @@ def create_summary_table(all_results, results_dir):
 def create_robustness_analysis(all_results, results_dir):
     """创建鲁棒性分析图表"""
     
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    # Dynamically get the class numbers that were actually run
+    executed_class_numbers = sorted(list(set(r['n_classes'] for r in all_results)))
+    if not executed_class_numbers:
+        print("No results found to create robustness analysis.")
+        return
+    class_numbers = executed_class_numbers
+
+    # Adjust the number of subplots dynamically
+    num_cols = len(class_numbers)
     
-    class_numbers = [3, 4, 5]
-    models = ['CAAC', 'LogisticRegression', 'RandomForest', 'SVM']
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    fig, axes = plt.subplots(1, num_cols, figsize=(6 * num_cols, 6), squeeze=False) # Ensure axes is always 2D
     
+    models = ['CAAC', 'LogisticRegression', 'RandomForest', 'SVM', 'MLP']
+    # Ensure enough colors if more models/class_numbers are ever used, though 5 models is current max
+    default_colors = plt.cm.get_cmap('tab10', max(len(models), num_cols)).colors 
+    colors = [default_colors[i % len(default_colors)] for i in range(len(models))]
+
     for idx, n_classes in enumerate(class_numbers):
-        ax = axes[idx]
+        ax = axes[0, idx] # Access subplot correctly for 1 row
         
         # 收集该类别数的结果
-        clean_results = next(r for r in all_results if r['n_classes'] == n_classes and r['outlier_ratio'] == 0.0)
-        outlier_results = next(r for r in all_results if r['n_classes'] == n_classes and r['outlier_ratio'] == 0.1)
+        clean_results_iter = (r for r in all_results if r['n_classes'] == n_classes and r['outlier_ratio'] == 0.0)
+        outlier_results_iter = (r for r in all_results if r['n_classes'] == n_classes and r['outlier_ratio'] == 0.1)
+
+        clean_results = next(clean_results_iter, None)
+        outlier_results = next(outlier_results_iter, None)
+
+        if clean_results is None or outlier_results is None:
+            print(f"Skipping robustness analysis for {n_classes}-Class: Missing clean or outlier data.")
+            ax.text(0.5, 0.5, f'{n_classes}-Class\nRobustness data N/A', 
+                    horizontalalignment='center', verticalalignment='center', 
+                    transform=ax.transAxes, fontsize=10, color='gray')
+            ax.set_title(f'{n_classes}-Class Robustness (N/A)')
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            continue
         
         # 计算准确率下降
         accuracy_drops = []
@@ -279,4 +321,28 @@ def create_robustness_analysis(all_results, results_dir):
     print(f"Robustness analysis saved to {robustness_path}")
 
 if __name__ == "__main__":
-    run_all_multiclass_experiments() 
+    # Example of running with default parameters
+    # run_all_multiclass_experiments() 
+    
+    # Example of running with custom parameters
+    custom_config = [{
+        'name': '3-Class Fast Test',
+        'n_classes': 3,
+        'n_samples': 600, # Reduced samples for faster test
+        'n_features': 20, # Increased n_features to 20 to satisfy n_informative + n_redundant
+        'class_sep': 1.0,
+        'model_params': {
+            'n_paths': 2, # Crucially, n_paths should match n_classes
+            'representation_dim': 32 * 2,
+            'latent_dim': 16 * 2,
+            'epochs': 50, # Reduced epochs
+            'early_stopping_patience': 5 
+        }
+    }]
+    run_all_multiclass_experiments(
+        results_base_dir='results/multiclass_fast_test',
+        experiment_configs_override=custom_config,
+        outlier_ratios_override=[0.0, 0.1], # Run both clean and 10% outlier data for robustness analysis
+        global_caac_model_params_override={'epochs': 60, 'early_stopping_patience': 10},
+        baseline_model_params_override={'MLP': {'max_iter': 200, 'hidden_layer_sizes': (50,)}}
+    ) 

@@ -13,6 +13,7 @@ import torch
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 
 from ..data.synthetic import SyntheticBinaryClassificationGenerator, split_data
 from ..models.caac_model import CAACModelWrapper
@@ -128,7 +129,8 @@ def run_binary_classification_experiment(
 def compare_with_baselines(
     X_train, y_train, X_test, y_test,
     caac_model=None,
-    random_state=42
+    random_state=42,
+    baseline_params_override=None
 ):
     """
     与基线方法比较
@@ -140,6 +142,7 @@ def compare_with_baselines(
         y_test: 测试集标签
         caac_model: 已训练的CAAC模型 (可选)
         random_state: 随机种子
+        baseline_params_override: 基线模型参数覆盖 (新增)
         
     返回:
         comparison_results: 比较结果字典
@@ -155,9 +158,23 @@ def compare_with_baselines(
         caac_metrics['train_time'] = caac_model.history.get('train_time', 0.0)
         results['CAAC'] = caac_metrics
     
+    # 基线模型默认参数
+    baselines_config = {
+        'LogisticRegression': {'random_state': random_state, 'max_iter': 200},
+        'RandomForest': {'random_state': random_state, 'n_estimators': 100},
+        'SVM': {'probability': True, 'random_state': random_state},
+        'MLP': {'random_state': random_state, 'max_iter': 300} # Default MLP params
+    }
+
+    if baseline_params_override:
+        for model_name, params in baseline_params_override.items():
+            if model_name in baselines_config:
+                baselines_config[model_name].update(params)
+    
     # 逻辑回归
     start_time = time.time()
-    lr = LogisticRegression(random_state=random_state)
+    lr_params = baselines_config['LogisticRegression']
+    lr = LogisticRegression(**lr_params)
     lr.fit(X_train, y_train)
     lr_time = time.time() - start_time
     
@@ -169,7 +186,8 @@ def compare_with_baselines(
     
     # 随机森林
     start_time = time.time()
-    rf = RandomForestClassifier(random_state=random_state)
+    rf_params = baselines_config['RandomForest']
+    rf = RandomForestClassifier(**rf_params)
     rf.fit(X_train, y_train)
     rf_time = time.time() - start_time
     
@@ -181,7 +199,8 @@ def compare_with_baselines(
     
     # SVM
     start_time = time.time()
-    svm = SVC(probability=True, random_state=random_state)
+    svm_params = baselines_config['SVM']
+    svm = SVC(**svm_params)
     svm.fit(X_train, y_train)
     svm_time = time.time() - start_time
     
@@ -190,6 +209,19 @@ def compare_with_baselines(
     svm_metrics = evaluate_binary_classification(y_test, y_pred, y_pred_proba)
     svm_metrics['train_time'] = svm_time
     results['SVM'] = svm_metrics
+    
+    # MLP
+    start_time = time.time()
+    mlp_params = baselines_config['MLP']
+    mlp = MLPClassifier(**mlp_params)
+    mlp.fit(X_train, y_train)
+    mlp_time = time.time() - start_time
+    
+    y_pred_mlp = mlp.predict(X_test)
+    y_pred_proba_mlp = mlp.predict_proba(X_test) # For binary, this gives [prob_0, prob_1]
+    mlp_metrics = evaluate_binary_classification(y_test, y_pred_mlp, y_pred_proba_mlp)
+    mlp_metrics['train_time'] = mlp_time
+    results['MLP'] = mlp_metrics
     
     # 转换为DataFrame以便比较
     comparison_df = pd.DataFrame(results).T

@@ -129,10 +129,13 @@ def main():
             'rf_f1': r['comparison']['RandomForest']['f1'],
             'svm_accuracy': r['comparison']['SVM']['accuracy'],
             'svm_f1': r['comparison']['SVM']['f1'],
+            'mlp_accuracy': r['comparison']['MLP']['accuracy'] if 'MLP' in r['comparison'] else np.nan,
+            'mlp_f1': r['comparison']['MLP']['f1'] if 'MLP' in r['comparison'] else np.nan,
             'caac_train_time': r['train_time'],
             'lr_train_time': r['comparison']['LogisticRegression']['train_time'],
             'rf_train_time': r['comparison']['RandomForest']['train_time'],
-            'svm_train_time': r['comparison']['SVM']['train_time']
+            'svm_train_time': r['comparison']['SVM']['train_time'],
+            'mlp_train_time': r['comparison']['MLP']['train_time'] if 'MLP' in r['comparison'] else np.nan
         }
         for r in all_results
     ])
@@ -151,8 +154,10 @@ def main():
     
     # 准确率比较
     plt.subplot(2, 2, 1)
-    for model in ['caac', 'lr', 'rf', 'svm']:
-        plt.plot(summary_df['experiment'], summary_df[f'{model}_accuracy'], marker='o', label=model.upper())
+    model_list = ['caac', 'lr', 'rf', 'svm', 'mlp']
+    for model_key in model_list:
+        if f'{model_key}_accuracy' in summary_df.columns:
+            plt.plot(summary_df['experiment'], summary_df[f'{model_key}_accuracy'], marker='o', label=model_key.upper())
     plt.title('Accuracy Comparison')
     plt.xticks(rotation=45)
     plt.ylabel('Accuracy')
@@ -160,8 +165,9 @@ def main():
     
     # F1分数比较
     plt.subplot(2, 2, 2)
-    for model in ['caac', 'lr', 'rf', 'svm']:
-        plt.plot(summary_df['experiment'], summary_df[f'{model}_f1'], marker='o', label=model.upper())
+    for model_key in model_list:
+        if f'{model_key}_f1' in summary_df.columns:
+            plt.plot(summary_df['experiment'], summary_df[f'{model_key}_f1'], marker='o', label=model_key.upper())
     plt.title('F1 Score Comparison')
     plt.xticks(rotation=45)
     plt.ylabel('F1 Score')
@@ -169,11 +175,14 @@ def main():
     
     # 训练时间比较
     plt.subplot(2, 2, 3)
-    for model in ['caac', 'lr', 'rf', 'svm']:
-        plt.bar(np.arange(len(summary_df)) + 0.2 * (['caac', 'lr', 'rf', 'svm'].index(model) - 1.5), 
-                summary_df[f'{model}_train_time'], 
-                width=0.2, 
-                label=model.upper())
+    num_models = len(model_list)
+    bar_width = 0.8 / num_models
+    for i, model_key in enumerate(model_list):
+        if f'{model_key}_train_time' in summary_df.columns:
+            plt.bar(np.arange(len(summary_df)) + bar_width * (i - num_models / 2 + 0.5), 
+                    summary_df[f'{model_key}_train_time'], 
+                    width=bar_width, 
+                    label=model_key.upper())
     plt.title('Training Time Comparison')
     plt.xticks(np.arange(len(summary_df)), summary_df['experiment'], rotation=45)
     plt.ylabel('Time (seconds)')
@@ -189,15 +198,16 @@ def main():
         noisy_data = summary_df[(summary_df['data_type'] == data_type) & (summary_df['outlier_ratio'] > 0.0)]
         
         if len(clean_data) > 0 and len(noisy_data) > 0:
-            for model in ['caac', 'lr', 'rf', 'svm']:
-                clean_acc = clean_data[f'{model}_accuracy'].values[0]
-                noisy_acc = noisy_data[f'{model}_accuracy'].values[0]
-                acc_drop_pct = (clean_acc - noisy_acc) / clean_acc * 100 if clean_acc > 0 else 0
-                robustness_data.append({
-                    'data_type': data_type,
-                    'model': model.upper(),
-                    'acc_drop_pct': acc_drop_pct
-                })
+            for model_key in model_list:
+                if f'{model_key}_accuracy' in clean_data.columns and f'{model_key}_accuracy' in noisy_data.columns:
+                    clean_acc = clean_data[f'{model_key}_accuracy'].values[0]
+                    noisy_acc = noisy_data[f'{model_key}_accuracy'].values[0]
+                    acc_drop_pct = (clean_acc - noisy_acc) / clean_acc * 100 if clean_acc > 0 else 0
+                    robustness_data.append({
+                        'data_type': data_type,
+                        'model': model_key.upper(),
+                        'acc_drop_pct': acc_drop_pct
+                    })
     
     if robustness_data:
         robustness_df = pd.DataFrame(robustness_data)
