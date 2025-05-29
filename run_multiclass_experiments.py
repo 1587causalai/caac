@@ -327,12 +327,12 @@ if __name__ == "__main__":
     # Example of running with custom parameters
     custom_config = [{
         'name': '3-Class Fast Test',
-        'n_classes': 3,
+        'n_classes': 8,
         'n_samples': 600, # Reduced samples for faster test
         'n_features': 20, # Increased n_features to 20 to satisfy n_informative + n_redundant
         'class_sep': 1.0,
         'model_params': {
-            'n_paths': 2, # Crucially, n_paths should match n_classes
+            'n_paths': 10, # Crucially, n_paths should match n_classes
             'representation_dim': 32 * 2,
             'latent_dim': 16 * 2,
             'epochs': 50, # Reduced epochs
