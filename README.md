@@ -66,11 +66,9 @@ CAAC-SPSFT模型在多种数据集上（线性/非线性，有/无异常值）�
 
 ```
 @misc{caac2025,
-  author = {1587causalai},
+  author = {Heyang Gong},
   title = {CAAC: Cauchy Abduction Action Classification},
   year = {2025},
-  publisher = {GitHub},
-  journal = {GitHub repository},
   howpublished = {\url{https://github.com/1587causalai/caac}}
 }
 ```

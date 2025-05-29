@@ -150,7 +150,10 @@ def compare_with_baselines(
     if caac_model is not None:
         y_pred = caac_model.predict(X_test)
         y_pred_proba = caac_model.predict_proba(X_test)
-        results['CAAC'] = evaluate_binary_classification(y_test, y_pred, y_pred_proba)
+        caac_metrics = evaluate_binary_classification(y_test, y_pred, y_pred_proba)
+        # 添加训练时间
+        caac_metrics['train_time'] = caac_model.history.get('train_time', 0.0)
+        results['CAAC'] = caac_metrics
     
     # 逻辑回归
     start_time = time.time()
