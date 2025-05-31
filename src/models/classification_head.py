@@ -12,80 +12,75 @@ import numpy as np
 
 class ClassificationHead(nn.Module):
     """
-    分类头 (Classification Head)
-    
-    基于柯西CDF和固定阈值计算每条路径的分类概率，
-    然后通过路径选择概率进行加权平均。
-    
-    支持二分类和多分类任务。
+    分类头模块
+
+    根据路径得分、路径概率和阈值计算最终的类别概率。
+    Adapting for Softmax-based multi-class (n_classes > 2) 
+    and keeping existing logic for binary (n_classes == 2).
     """
-    def __init__(self, n_classes=2):
+    def __init__(self, n_classes):
         super(ClassificationHead, self).__init__()
         self.n_classes = n_classes
-    
-    def forward(self, mu_scores, gamma_scores, path_probs, thresholds):
-        batch_size, n_paths = mu_scores.shape
+
+    def forward(self, path_class_logits=None, path_probs=None, mu_scores=None, gamma_scores=None, thresholds=None):
+        """
+        计算最终类别概率。
+
+        Args (for n_classes > 2):
+            path_class_logits: 各路径的类别 Logits [batch_size, n_paths, n_classes]
+            path_probs: 各路径的选择概率 [batch_size, n_paths]
         
-        # 计算柯西CDF: F(θ) = 0.5 + (1/π) * arctan((θ - μ) / γ)
-        def cauchy_cdf(threshold, mu, gamma):
-            normalized = (threshold - mu) / gamma
-            return 0.5 + (1.0 / np.pi) * torch.atan(normalized)
-        
-        if self.n_classes == 2:
-            # 二分类：只需要一个阈值
-            # [batch_size, n_paths]
-            cdf_values = cauchy_cdf(thresholds, mu_scores, gamma_scores)
+        Args (for n_classes == 2, current logic):
+            mu_scores: 各路径的位置参数 [batch_size, n_paths]
+            gamma_scores: 各路径的尺度参数 [batch_size, n_paths]
+            path_probs: 各路径的选择概率 [batch_size, n_paths]
+            thresholds: 类别阈值 [n_classes-1] (effectively [1] for binary)
+
+        Returns:
+            class_probs: 最终类别概率 [batch_size, n_classes]
+        """
+        if self.n_classes > 2:
+            if path_class_logits is None or path_probs is None:
+                raise ValueError("For n_classes > 2, path_class_logits and path_probs must be provided.")
             
-            # 计算每条路径的类别概率
-            # 类别0的概率: P(Y=0|M=j,x) = F(θ)
-            # 类别1的概率: P(Y=1|M=j,x) = 1 - F(θ)
-            class_0_probs = cdf_values
-            class_1_probs = 1.0 - cdf_values
+            # 加权平均路径的类别Logits
+            # path_class_logits: [batch_size, n_paths, n_classes]
+            # path_probs: [batch_size, n_paths]
+            # Unsqueeze path_probs to [batch_size, n_paths, 1] for broadcasting
+            weighted_logits = torch.sum(path_class_logits * path_probs.unsqueeze(-1), dim=1)
+            # weighted_logits: [batch_size, n_classes]
             
-            # 堆叠类别概率
-            # [batch_size, n_paths, n_classes]
-            path_class_probs = torch.stack([class_0_probs, class_1_probs], dim=2)
+            class_probs = F.softmax(weighted_logits, dim=1)
             
+        elif self.n_classes == 2:
+            if mu_scores is None or gamma_scores is None or path_probs is None or thresholds is None:
+                raise ValueError("For n_classes == 2, mu_scores, gamma_scores, path_probs, and thresholds must be provided.")
+
+            batch_size = mu_scores.shape[0]
+            n_paths = mu_scores.shape[1]
+
+            # 确保 gamma_scores 为正
+            gamma_scores_positive = F.softplus(gamma_scores)
+
+            # 计算每个路径对每个类别的贡献 (使用柯西CDF)
+            # thresholds: [1] for binary case (class 0 vs class 1)
+            # threshold_val typically 0 for distinguishing <0 and >0
+            threshold_val = thresholds[0] # For binary classification, there's one threshold
+            
+            # Prob of being in class 1 for each path
+            # P(X > threshold_val) = 1 - P(X <= threshold_val) = 1 - CDF(threshold_val)
+            # CDF_cauchy(x; mu, gamma) = 0.5 + (1/pi) * atan((x - mu) / gamma)
+            prob_class1_per_path = 0.5 - (1.0 / torch.pi) * torch.atan((threshold_val - mu_scores) / gamma_scores_positive)
+            prob_class1_per_path = prob_class1_per_path.clamp(min=1e-6, max=1.0-1e-6) # Clamp for stability
+
+            # 加权平均路径贡献
+            # path_probs: [batch_size, n_paths]
+            # prob_class1_per_path: [batch_size, n_paths]
+            final_prob_class1 = torch.sum(prob_class1_per_path * path_probs, dim=1, keepdim=True)
+            final_prob_class0 = 1.0 - final_prob_class1
+            
+            class_probs = torch.cat([final_prob_class0, final_prob_class1], dim=1)
         else:
-            # 多分类：需要 n_classes-1 个阈值
-            # thresholds: [n_classes-1]
+            raise ValueError(f"Unsupported n_classes: {self.n_classes}")
             
-            # 初始化路径类别概率
-            # [batch_size, n_paths, n_classes]
-            path_class_probs = torch.zeros(batch_size, n_paths, self.n_classes, device=mu_scores.device)
-            
-            # 扩展阈值维度以便计算
-            # mu_scores: [batch_size, n_paths] -> [batch_size, n_paths, 1]
-            # gamma_scores: [batch_size, n_paths] -> [batch_size, n_paths, 1]
-            mu_expanded = mu_scores.unsqueeze(2)
-            gamma_expanded = gamma_scores.unsqueeze(2)
-            
-            # 计算每个阈值的CDF值
-            # thresholds: [n_classes-1] -> [1, 1, n_classes-1]
-            thresholds_expanded = thresholds.view(1, 1, -1)
-            
-            # 计算所有阈值的CDF
-            # [batch_size, n_paths, n_classes-1]
-            cdf_values = cauchy_cdf(thresholds_expanded, mu_expanded, gamma_expanded)
-            
-            # 计算每个类别的概率
-            # P(Y=0|M=j,x) = F(θ_0)，其中 F(θ_0) = F(θ_1)（第一个阈值）
-            path_class_probs[:, :, 0] = cdf_values[:, :, 0]
-            
-            # P(Y=k|M=j,x) = F(θ_k) - F(θ_{k-1}) for k=1,...,n_classes-2
-            for k in range(1, self.n_classes-1):
-                path_class_probs[:, :, k] = cdf_values[:, :, k] - cdf_values[:, :, k-1]
-            
-            # P(Y=n_classes-1|M=j,x) = 1 - F(θ_{n_classes-2})
-            path_class_probs[:, :, self.n_classes-1] = 1.0 - cdf_values[:, :, -1]
-        
-        # 通过路径选择概率加权平均
-        # [batch_size, n_paths, 1] * [batch_size, n_paths, n_classes]
-        # -> [batch_size, n_paths, n_classes] -> [batch_size, n_classes]
-        weighted_probs = path_probs.unsqueeze(2) * path_class_probs
-        final_probs = weighted_probs.sum(dim=1)
-        
-        # 确保概率和为1（数值稳定性）
-        final_probs = final_probs / final_probs.sum(dim=1, keepdim=True)
-        
-        return final_probs
+        return class_probs

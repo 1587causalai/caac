@@ -15,15 +15,16 @@ from torch.utils.data import Dataset, DataLoader
 
 from .base_networks import FeatureNetwork, AbductionNetwork
 from .pathway_network import PathwayNetwork
-from .threshold_mechanism import FixedThresholdMechanism
+# from .threshold_mechanism import FixedThresholdMechanism # No longer needed for softmax multiclass
 from .classification_head import ClassificationHead
 from .loss_functions import compute_nll_loss
 
 class CAACModel(nn.Module):
     """
-    CAAC-SPSFT 二分类模型
+    CAAC-SPSFT 模型
     
-    结合了因果表征生成、多路径网络、固定阈值机制和分类概率计算等核心组件。
+    结合了因果表征生成、多路径网络和分类概率计算等核心组件。
+    Adapting for Softmax-based multi-class classification.
     """
     def __init__(self, input_dim, representation_dim=64, latent_dim=64, 
                  n_paths=2, n_classes=2,
@@ -42,13 +43,13 @@ class CAACModel(nn.Module):
         # 推断网络
         self.abduction_net = AbductionNetwork(representation_dim, latent_dim, abduction_hidden_dims)
         
-        # 多路径网络
-        self.pathway_net = PathwayNetwork(latent_dim, n_paths)
+        # 多路径网络 (now takes n_classes for logit generation)
+        self.pathway_net = PathwayNetwork(latent_dim, n_paths, n_classes) 
         
-        # 固定阈值机制
-        self.threshold_mechanism = FixedThresholdMechanism(n_classes)
+        # 固定阈值机制 (No longer needed if ClassificationHead uses softmax for n_classes > 2)
+        # self.threshold_mechanism = FixedThresholdMechanism(n_classes)
         
-        # 分类头
+        # 分类头 (will be adapted to take path_class_logits for n_classes > 2)
         self.classification_head = ClassificationHead(n_classes)
     
     def forward(self, x):
@@ -58,16 +59,22 @@ class CAACModel(nn.Module):
         # 推断因果表征参数
         location_param, scale_param = self.abduction_net(representation)
         
-        # 多路径处理
-        mu_scores, gamma_scores, path_probs = self.pathway_net(location_param, scale_param)
+        # 多路径处理 (now outputs path_class_logits, path_probs)
+        # We'll use location_param as the input to pathway_net, assuming it holds relevant latent info.
+        # This maintains the role of AbductionNetwork for now.
+        path_class_logits, path_probs = self.pathway_net(location_param) 
         
-        # 获取固定阈值
-        thresholds = self.threshold_mechanism()
+        # 获取固定阈值 (No longer needed for softmax path)
+        # thresholds = self.threshold_mechanism()
         
-        # 计算分类概率
-        class_probs = self.classification_head(mu_scores, gamma_scores, path_probs, thresholds)
+        # 计算分类概率 (ClassificationHead will be modified to handle path_class_logits)
+        # For now, the signature change is anticipated for the next step. 
+        # If n_classes == 2 and old ClassificationHead logic is kept, it would need mu_scores, gamma_scores, thresholds.
+        # Assuming ClassificationHead will be updated to use path_class_logits and path_probs for all cases or for n_classes > 2:
+        class_probs = self.classification_head(path_class_logits, path_probs)
         
-        return class_probs, location_param, scale_param, mu_scores, gamma_scores, path_probs, thresholds
+        # Return relevant values. mu_scores, gamma_scores, thresholds are removed.
+        return class_probs, location_param, scale_param, path_probs # path_class_logits could also be returned for inspection
 
 class CAACModelWrapper:
     """

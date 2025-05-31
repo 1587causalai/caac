@@ -1,0 +1,14 @@
+# Multiclass Classification Results Summary
+
+|   Classes | Data Type   | Model              |   Accuracy |   F1 (Macro) |   AUC (OvR) | Train Time   |
+|----------:|:------------|:-------------------|-----------:|-------------:|------------:|:-------------|
+|         3 | Clean       | CAAC               |      0.808 |        0.803 |       0.944 | 0.43s        |
+|         3 | Clean       | LogisticRegression |      0.858 |        0.859 |       0.955 | 0.01s        |
+|         3 | Clean       | RandomForest       |      0.867 |        0.868 |       0.957 | 0.07s        |
+|         3 | Clean       | SVM                |      0.9   |        0.901 |       0.97  | 0.01s        |
+|         3 | Clean       | MLP                |      0.883 |        0.884 |       0.971 | 0.06s        |
+|         3 | 10%         | CAAC               |      0.725 |        0.711 |       0.892 | 0.44s        |
+|         3 | 10%         | LogisticRegression |      0.758 |        0.756 |       0.855 | 0.00s        |
+|         3 | 10%         | RandomForest       |      0.825 |        0.825 |       0.949 | 0.07s        |
+|         3 | 10%         | SVM                |      0.875 |        0.875 |       0.971 | 0.01s        |
+|         3 | 10%         | MLP                |      0.842 |        0.842 |       0.911 | 0.06s        |

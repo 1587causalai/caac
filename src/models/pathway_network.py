@@ -14,62 +14,51 @@ class PathwayNetwork(nn.Module):
     """
     多路径网络 (Pathway Network)
     
-    包含K条并行的"解读路径"，每条路径有自己的线性变换参数，
-    从因果表征生成路径特定的柯西得分参数。
+    包含K条并行的"解读路径"。
+    对于Softmax分类模式：每条路径从潜在表征生成n_classes个logits。
+    同时计算路径选择概率。
     """
-    def __init__(self, latent_dim, n_paths):
+    def __init__(self, latent_dim, n_paths, n_classes):
         super(PathwayNetwork, self).__init__()
         self.latent_dim = latent_dim
         self.n_paths = n_paths
+        self.n_classes = n_classes
         
-        # 每条路径的位置参数线性变换
-        self.mu_weights = nn.Parameter(torch.randn(n_paths, latent_dim))
-        self.mu_biases = nn.Parameter(torch.zeros(n_paths))
-        
-        # 每条路径的尺度参数线性变换
-        self.gamma_weights = nn.Parameter(torch.randn(n_paths, latent_dim) * 0.1)
-        self.gamma_biases = nn.Parameter(torch.zeros(n_paths))
+        # 每条路径的类别 Logits 生成层
+        self.path_class_logit_layers = nn.ModuleList(
+            [nn.Linear(latent_dim, n_classes) for _ in range(n_paths)]
+        )
         
         # 路径选择概率的原始参数
-        self.path_logits = nn.Parameter(torch.zeros(n_paths))
+        self.path_logits_param = nn.Parameter(torch.zeros(n_paths))
         
         # 初始化参数
         self._initialize_parameters()
         
     def _initialize_parameters(self):
-        # 位置参数权重初始化
-        nn.init.xavier_normal_(self.mu_weights)
-        
-        # 位置参数偏置初始化 - 使不同路径有不同的基线
-        for j in range(self.n_paths):
-            self.mu_biases.data[j] = j * 0.5
-            
-        # 尺度参数权重初始化 - 小值初始化
-        with torch.no_grad():
-            self.gamma_weights.data.uniform_(-0.1, 0.1)
-            
-        # 尺度参数偏置初始化 - 确保正值
-        with torch.no_grad():
-            self.gamma_biases.data.fill_(0.0)
+        # 初始化每个路径的 Logit 生成层
+        for layer in self.path_class_logit_layers:
+            nn.init.xavier_normal_(layer.weight)
+            nn.init.zeros_(layer.bias)
             
         # 路径选择概率初始化 - 均匀分布
         with torch.no_grad():
-            self.path_logits.data.fill_(0.0)
+            self.path_logits_param.data.fill_(0.0)
     
-    def forward(self, location_param, scale_param):
-        batch_size = location_param.shape[0]
+    def forward(self, latent_representation):
+        # latent_representation: [batch_size, latent_dim]
+        batch_size = latent_representation.shape[0]
         
-        # 计算每条路径的位置参数
-        # [batch_size, latent_dim] @ [n_paths, latent_dim].t() -> [batch_size, n_paths]
-        mu_scores = torch.matmul(location_param, self.mu_weights.t()) + self.mu_biases
+        all_path_class_logits = []
+        for i in range(self.n_paths):
+            current_path_logits = self.path_class_logit_layers[i](latent_representation)
+            all_path_class_logits.append(current_path_logits)
         
-        # 计算每条路径的尺度参数
-        # [batch_size, latent_dim] @ [n_paths, latent_dim].t() -> [batch_size, n_paths]
-        gamma_base = torch.matmul(scale_param, torch.abs(self.gamma_weights).t())
-        gamma_scores = gamma_base + torch.exp(self.gamma_biases)
+        # Stack to get [batch_size, n_paths, n_classes]
+        path_class_logits = torch.stack(all_path_class_logits, dim=1)
         
         # 计算路径选择概率
         # [n_paths] -> [batch_size, n_paths]
-        path_probs = F.softmax(self.path_logits, dim=0).expand(batch_size, -1)
+        path_probs = F.softmax(self.path_logits_param, dim=0).expand(batch_size, -1)
         
-        return mu_scores, gamma_scores, path_probs
+        return path_class_logits, path_probs

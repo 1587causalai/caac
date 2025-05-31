@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from ..models.caac_model import CAACModelWrapper
+from ..models.caac_spsft_new import NewCAACModelWrapper
 from ..utils.metrics import evaluate_multiclass_classification
 
 def generate_multiclass_data(
@@ -119,7 +120,8 @@ def run_multiclass_classification_experiment(
     class_sep=1.0,
     outlier_ratio=0.0,
     random_state=42,
-    model_params=None
+    model_params=None,
+    use_new_implementation=True  # 新增参数，选择使用哪个实现
 ):
     """
     运行多分类实验
@@ -134,6 +136,7 @@ def run_multiclass_classification_experiment(
         outlier_ratio: 异常值比例
         random_state: 随机种子
         model_params: 模型参数字典
+        use_new_implementation: 是否使用新的CAAC实现
         
     返回:
         results: 实验结果字典
@@ -167,27 +170,49 @@ def run_multiclass_classification_experiment(
         random_state=random_state, stratify=y_train_val
     )
     
-    # 设置默认模型参数
-    default_model_params = {
-        'input_dim': n_features,
-        'representation_dim': 64,
-        'latent_dim': 32,
-        'n_paths': n_classes,  # 路径数量设为类别数量
-        'n_classes': n_classes,
-        'feature_hidden_dims': [64],
-        'abduction_hidden_dims': [64, 32],
-        'lr': 0.001,
-        'batch_size': 32,
-        'epochs': 100,
-        'early_stopping_patience': 10
-    }
+    # 根据选择的实现设置默认模型参数
+    if use_new_implementation:
+        # 新实现的默认参数
+        default_model_params = {
+            'input_dim': n_features,
+            'encoder_hidden_dim': 64,
+            'encoder_output_dim': 32,
+            'd_c': 16,
+            'n_paths': n_classes,  # 路径数量设为类别数量
+            'n_classes': n_classes,
+            'lr': 0.001,
+            'batch_size': 32,
+            'epochs': 100,
+            'early_stopping_patience': 10
+        }
+    else:
+        # 旧实现的默认参数
+        default_model_params = {
+            'input_dim': n_features,
+            'representation_dim': 64,
+            'latent_dim': 32,
+            'n_paths': n_classes,  # 路径数量设为类别数量
+            'n_classes': n_classes,
+            'feature_hidden_dims': [64],
+            'abduction_hidden_dims': [64, 32],
+            'lr': 0.001,
+            'batch_size': 32,
+            'epochs': 100,
+            'early_stopping_patience': 10
+        }
     
     # 更新模型参数
     if model_params is not None:
         default_model_params.update(model_params)
     
     # 创建并训练模型
-    model = CAACModelWrapper(**default_model_params)
+    if use_new_implementation:
+        print("使用新的 CAAC-SPSFT 实现...")
+        model = NewCAACModelWrapper(**default_model_params)
+    else:
+        print("使用旧的 CAAC 实现...")
+        model = CAACModelWrapper(**default_model_params)
+    
     model.fit(X_train, y_train, X_val, y_val, verbose=1)
     
     # 评估模型
@@ -218,7 +243,8 @@ def run_multiclass_classification_experiment(
             'class_sep': class_sep,
             'outlier_ratio': outlier_ratio,
             'random_state': random_state,
-            'model_params': default_model_params
+            'model_params': default_model_params,
+            'use_new_implementation': use_new_implementation
         }
     }
     

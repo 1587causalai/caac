@@ -30,7 +30,8 @@ def run_all_multiclass_experiments(
     experiment_configs_override=None,
     outlier_ratios_override=None,
     global_caac_model_params_override=None,
-    baseline_model_params_override=None 
+    baseline_model_params_override=None,
+    use_new_implementation=True  # 新增参数
 ):
     """运行所有多分类实验"""
     
@@ -44,45 +45,32 @@ def run_all_multiclass_experiments(
         {
             'name': '3-Class Classification',
             'n_classes': 3,
-            'n_samples': 1500,
+            'n_samples': 800,  # 减少样本数进行快速测试
             'n_features': 10,
             'class_sep': 1.0,
             'model_params': {
                 'n_paths': 3,
-                'representation_dim': 64,
-                'latent_dim': 32,
-                'epochs': 150,
-                'early_stopping_patience': 15
+                'encoder_hidden_dim': 32,  # 减小网络规模
+                'encoder_output_dim': 16,
+                'd_c': 8,
+                'epochs': 50,  # 减少训练轮数
+                'early_stopping_patience': 10
             }
         },
         # 4类分类
         {
             'name': '4-Class Classification',
             'n_classes': 4,
-            'n_samples': 2000,
+            'n_samples': 1000,
             'n_features': 12,
             'class_sep': 0.8,
             'model_params': {
                 'n_paths': 4,
-                'representation_dim': 64,
-                'latent_dim': 32,
-                'epochs': 150,
-                'early_stopping_patience': 15
-            }
-        },
-        # 5类分类
-        {
-            'name': '5-Class Classification',
-            'n_classes': 5,
-            'n_samples': 2500,
-            'n_features': 15,
-            'class_sep': 0.6,
-            'model_params': {
-                'n_paths': 5,
-                'representation_dim': 64,
-                'latent_dim': 32,
-                'epochs': 200,
-                'early_stopping_patience': 20
+                'encoder_hidden_dim': 32,
+                'encoder_output_dim': 16,
+                'd_c': 8,
+                'epochs': 50,
+                'early_stopping_patience': 10
             }
         }
     ]
@@ -104,7 +92,7 @@ def run_all_multiclass_experiments(
     
     for config in experiment_configs:
         print(f"\n{'='*60}")
-        print(f"Running {config['name']} Experiments")
+        print(f"Running {config['name']} Experiments with {'New' if use_new_implementation else 'Old'} Implementation")
         print(f"{'='*60}")
         
         current_caac_params = config['model_params'].copy()
@@ -123,7 +111,8 @@ def run_all_multiclass_experiments(
                 class_sep=config['class_sep'],
                 outlier_ratio=outlier_ratio,
                 model_params=current_caac_params,
-                random_state=42
+                random_state=42,
+                use_new_implementation=use_new_implementation  # 传递新参数
             )
             
             # 与基线方法比较
@@ -144,6 +133,9 @@ def run_all_multiclass_experiments(
             
             # 可视化结果
             exp_name = f"{config['n_classes']}_classes_{outlier_str.lower()}"
+            if use_new_implementation:
+                exp_name += "_new_impl"
+            
             fig = visualize_multiclass_results(
                 results,
                 save_path=os.path.join(results_dir, f'{exp_name}_visualization.png')
@@ -156,6 +148,7 @@ def run_all_multiclass_experiments(
                 'n_classes': config['n_classes'],
                 'outlier_ratio': outlier_ratio,
                 'outlier_type': outlier_str,
+                'implementation': 'new' if use_new_implementation else 'old',
                 'metrics': comparison['results'],
                 'training_history': {
                     'final_epoch': len(results['history']['train_loss']),
@@ -205,7 +198,7 @@ def run_all_multiclass_experiments(
     create_robustness_analysis(all_results, results_dir)
     
     print("\n" + "="*60)
-    print("All multiclass experiments completed!")
+    print(f"All multiclass experiments completed using {'New' if use_new_implementation else 'Old'} implementation!")
     print("="*60)
 
 def create_summary_table(all_results, results_dir):
@@ -321,28 +314,33 @@ def create_robustness_analysis(all_results, results_dir):
     print(f"Robustness analysis saved to {robustness_path}")
 
 if __name__ == "__main__":
-    # Example of running with default parameters
-    # run_all_multiclass_experiments() 
+    # 运行新实现的快速测试
+    print("Running multiclass experiments with NEW CAAC-SPSFT implementation...")
     
-    # Example of running with custom parameters
+    # 快速测试配置
     custom_config = [{
-        'name': '3-Class Fast Test',
-        'n_classes': 8,
-        'n_samples': 600, # Reduced samples for faster test
-        'n_features': 20, # Increased n_features to 20 to satisfy n_informative + n_redundant
+        'name': '3-Class Fast Test with New Implementation',
+        'n_classes': 3,
+        'n_samples': 600,  # 减少样本数进行快速测试
+        'n_features': 10,
         'class_sep': 1.0,
         'model_params': {
-            'n_paths': 10, # Crucially, n_paths should match n_classes
-            'representation_dim': 32 * 2,
-            'latent_dim': 16 * 2,
-            'epochs': 50, # Reduced epochs
-            'early_stopping_patience': 5 
+            'n_paths': 3,  # 路径数等于类别数
+            'encoder_hidden_dim': 32,
+            'encoder_output_dim': 16,
+            'd_c': 8,  # 因果表征维度
+            'epochs': 200,  # 减少训练轮数
+            'early_stopping_patience': 8,
+            'lr': 0.001,
+            'batch_size': 32
         }
     }]
+    
     run_all_multiclass_experiments(
-        results_base_dir='results/multiclass_fast_test',
+        results_base_dir='results/multiclass_new_implementation_test',
         experiment_configs_override=custom_config,
-        outlier_ratios_override=[0.0, 0.1], # Run both clean and 10% outlier data for robustness analysis
-        global_caac_model_params_override={'epochs': 60, 'early_stopping_patience': 10},
-        baseline_model_params_override={'MLP': {'max_iter': 200, 'hidden_layer_sizes': (50,)}}
+        outlier_ratios_override=[0.0, 0.1],  # 运行干净数据和10%异常值数据
+        global_caac_model_params_override={'epochs': 40, 'early_stopping_patience': 10},
+        baseline_model_params_override={'MLP': {'max_iter': 200, 'hidden_layer_sizes': (50,)}},
+        use_new_implementation=True  # 使用新实现
     ) 
