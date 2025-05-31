@@ -1,7 +1,26 @@
 """
-初始化包导入文件
+Models module for Shared Cauchy OvR Classifier
 
-确保models目录可以作为包导入
+This package contains the implementation of the novel Shared Latent Cauchy Vector
+based One-vs-Rest (OvR) Classifier as described in theory_v2.md.
 """
 
-# 空文件，用于标记目录为Python包
+from .shared_cauchy_ovr import SharedCauchyOvRClassifier
+from .loss_functions import (
+    OvRBinaryCrossEntropyLoss,
+    WeightedOvRBCELoss,
+    FocalOvRLoss,
+    UncertaintyRegularizedLoss,
+    create_loss_function
+)
+from .trainer import SharedCauchyOvRTrainer
+
+__all__ = [
+    'SharedCauchyOvRClassifier',
+    'OvRBinaryCrossEntropyLoss',
+    'WeightedOvRBCELoss', 
+    'FocalOvRLoss',
+    'UncertaintyRegularizedLoss',
+    'create_loss_function',
+    'SharedCauchyOvRTrainer'
+]
