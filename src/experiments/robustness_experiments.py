@@ -375,11 +375,11 @@ class RobustnessExperimentRunner:
             datasets: List of dataset names to test
         """
         if noise_levels is None:
-            noise_levels = [0.0, 0.05, 0.10, 0.15, 0.20]
+            noise_levels = [0.0, 0.10, 0.20]  # 统一使用3个噪声水平
         
         if datasets is None:
-            datasets = ['iris', 'wine', 'breast_cancer', 'optical_digits', 
-                       'digits', 'synthetic_imbalanced', 'covertype', 'letter']
+            # 标准测试：使用中等规模数据集，不包含最小的iris/wine
+            datasets = ['breast_cancer', 'optical_digits', 'digits', 'synthetic_imbalanced', 'covertype', 'letter']
         
         print("🔬 Standard Robustness Test")
         print("=" * 50)
@@ -387,15 +387,152 @@ class RobustnessExperimentRunner:
         print(f"⚙️  Representation dim: {representation_dim}, Epochs: {epochs}")
         print("⏱️  This may take 15-25 minutes...")
         print("📋 5种核心方法对比: CAAC(Cauchy), CAAC(Gaussian), MLP(Softmax), MLP(OvR), MLP(Hinge)")
+        print("📁 使用中等规模数据集（不含iris/wine小数据集）")
         print()
         
-        # Use the same logic as quick test but with more datasets and epochs
-        return self.run_quick_robustness_test(
-            noise_levels=noise_levels,
-            representation_dim=representation_dim,
-            epochs=epochs,
-            datasets=datasets
-        )
+        all_results = []
+        
+        # Test methods - 标准测试专用配置（更高耐心值，更大batch size）
+        methods = {
+            'CAAC (Cauchy)': {
+                'class': CAACOvRModel,
+                'params': {
+                    'representation_dim': representation_dim,
+                    'epochs': epochs,
+                    'lr': 0.001,
+                    'batch_size': 64,  # 标准测试使用更大batch size
+                    'early_stopping_patience': 15  # 标准测试使用更高耐心值
+                }
+            },
+            'CAAC (Gaussian)': {
+                'class': CAACOvRGaussianModel,
+                'params': {
+                    'representation_dim': representation_dim,
+                    'epochs': epochs,
+                    'lr': 0.001,
+                    'batch_size': 64,
+                    'early_stopping_patience': 15
+                }
+            },
+            'MLP (Softmax)': {
+                'class': SoftmaxMLPModel,
+                'params': {
+                    'representation_dim': representation_dim,
+                    'epochs': epochs,
+                    'lr': 0.001,
+                    'batch_size': 64,
+                    'early_stopping_patience': 15
+                }
+            },
+            'MLP (OvR Cross Entropy)': {
+                'class': OvRCrossEntropyMLPModel,
+                'params': {
+                    'representation_dim': representation_dim,
+                    'epochs': epochs,
+                    'lr': 0.001,
+                    'batch_size': 64,
+                    'early_stopping_patience': 15
+                }
+            },
+            'MLP (Crammer & Singer Hinge)': {
+                'class': CrammerSingerMLPModel,
+                'params': {
+                    'representation_dim': representation_dim,
+                    'epochs': epochs,
+                    'lr': 0.001,
+                    'batch_size': 64,
+                    'early_stopping_patience': 15
+                }
+            }
+        }
+        
+        for dataset_name in datasets:
+            print(f"📁 Testing dataset: {dataset_name}")
+            
+            # Load and preprocess data
+            X, y, target_names, display_name = self.load_dataset(dataset_name)
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42, stratify=y
+            )
+            
+            # Standardize features
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+            
+            # Test each method
+            for method_name, method_info in methods.items():
+                print(f"  🧪 Testing method: {method_name}")
+                
+                try:
+                    # Set up model parameters
+                    model_params = method_info['params'].copy()
+                    model_params['input_dim'] = X_train_scaled.shape[1]
+                    model_params['n_classes'] = len(np.unique(y))
+                    
+                    # Evaluate robustness
+                    method_results = self.evaluate_model_robustness(
+                        method_info['class'], model_params,
+                        X_train_scaled, X_test_scaled, y_train, y_test,
+                        noise_levels
+                    )
+                    
+                    # Add metadata to results
+                    for result in method_results:
+                        result.update({
+                            'dataset': display_name,
+                            'method': method_name,
+                            'dataset_key': dataset_name
+                        })
+                        all_results.append(result)
+                    
+                    # Calculate robustness score
+                    base_accuracy = method_results[0]['accuracy']  # No noise
+                    worst_accuracy = min(r['accuracy'] for r in method_results)
+                    robustness_score = worst_accuracy / base_accuracy if base_accuracy > 0 else 0
+                    
+                    print(f"    ✅ Base accuracy: {base_accuracy:.3f}, Robustness: {robustness_score:.3f}")
+                    
+                except Exception as e:
+                    print(f"    ❌ Error: {str(e)}")
+                    continue
+        
+        # Create results DataFrame and save
+        results_df = pd.DataFrame(all_results)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Save detailed results
+        results_file = self.results_dir / f"standard_robustness_results_{timestamp}.csv"
+        results_df.to_csv(results_file, index=False)
+        
+        # Create enhanced visualizations (legacy style)
+        self._create_robustness_plots(results_df, "standard_robustness", timestamp)
+        
+        # Analyze results with enhanced analysis (legacy style)
+        print("\n🔍 分析结果...")
+        robustness_df = self._analyze_robustness_results(results_df)
+        
+        # Generate enhanced report
+        print("\n📄 生成详细报告...")
+        report_file = self._generate_enhanced_robustness_report(results_df, robustness_df, "standard", timestamp)
+        
+        print(f"\n✅ Standard robustness test completed!")
+        print(f"📁 Results saved to: {self.results_dir_display}")
+        print("📊 Generated files:")
+        print(f"  • 详细报告: {report_file}")
+        print(f"  • 鲁棒性曲线: robustness_curves_{timestamp}.png")
+        print(f"  • 鲁棒性热力图: robustness_heatmap_{timestamp}.png")
+        print(f"  • 综合分析: standard_robustness_robustness_analysis_{timestamp}.png")
+        print(f"  • 原始数据: {results_file.name}")
+        
+        # Display key findings
+        if not robustness_df.empty:
+            print("\n🔍 关键发现预览:")
+            print(f"  • 最鲁棒方法: {robustness_df.iloc[0]['Method']}")
+            print(f"  • 鲁棒性得分: {robustness_df.iloc[0]['Overall_Robustness']:.4f}")
+            print(f"  • 性能衰减: {robustness_df.iloc[0]['Performance_Drop']:.1f}%")
+        
+        return str(self.results_dir)
     
     def _create_robustness_plots(self, results_df, experiment_type, timestamp):
         """Create enhanced visualization plots for robustness results (inspired by legacy scripts)."""
