@@ -37,3 +37,7 @@ env/
 tmp/
 temp/
 *.tmp
+
+
+# legacy
+legacy/

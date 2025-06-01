@@ -17,127 +17,83 @@
 
 ```
 caac_project/
+├── 📄 run_experiments.py         # 🎯 统一实验入口 (主要使用)
+├── 📄 QUICK_START.md             # 📖 快速开始指南
+├── 
 ├── src/                          # 源代码
-│   ├── models/                   # 模型实现
-│   │   ├── caac_ovr_model.py    # 主模型类
-│   │   ├── unified_network.py    # 统一网络架构
-│   │   └── ...
-│   ├── experiments/              # 实验脚本
-│   │   ├── run_experiments.py    # 单个实验运行
-│   │   └── model_evaluator.py    # 模型评估器
-│   └── data/                     # 数据处理模块
-├── docs/                         # 文档
-│   ├── motivation.md            # 理论动机
-│   └── experiments.md           # 实验结果
-├── results/                      # 实验结果
-├── run_all_experiments.py       # 批量运行所有实验
-├── generate_experiment_report.py # 生成实验报告
-└── README.md                    # 项目说明
+│   ├── models/                   # 🧠 核心算法实现
+│   │   └── caac_ovr_model.py    # CAAC算法主体
+│   ├── experiments/              # 🔬 实验模块
+│   │   ├── experiment_manager.py # 实验管理器
+│   │   ├── robustness_experiments.py # 鲁棒性测试
+│   │   ├── comparison_experiments.py # 方法对比
+│   │   └── outlier_experiments.py # 离群值测试
+│   ├── data/                     # 📊 数据处理
+│   ├── evaluators/               # 📈 评估器
+│   └── utils/                    # 🛠️ 工具函数
+├── 
+├── docs/                         # 📚 文档
+│   └── theory/motivation.md     # 理论基础
+├── results/                      # 📁 实验结果
+└── tests/                        # 🧪 测试代码
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-### 环境要求
-
-- Python 3.7+
-- PyTorch
-- scikit-learn
-- matplotlib
-- pandas
-- numpy
-- seaborn
-
-### 安装依赖
+### ⚡ 3步开始使用
 
 ```bash
-# 推荐使用conda环境
+# 1. 激活环境
 conda activate base
-pip install torch scikit-learn matplotlib pandas numpy seaborn
+
+# 2. 查看所有实验选项
+python run_experiments.py
+
+# 3. 运行你的第一个实验 (3-5分钟)
+python run_experiments.py --quick
 ```
 
-### 运行实验
+📖 **详细指南**: 查看 [`QUICK_START.md`](QUICK_START.md) 获取完整的快速开始指南
 
-#### 🚀 标签噪声鲁棒性测试 (推荐)
-
-**新增：基于扩展数据集的鲁棒性测试**
-
-本项目现在支持在**10个多样化数据集**上进行标签噪声鲁棒性测试，总计74,000+样本！
-
-##### 快速选择测试模式：
+### 🔬 主要实验类型
 
 ```bash
-# 1. 快速验证 (3-5分钟) - 4个小数据集
-python run_quick_robustness_test.py
-
-# 2. 标准测试 (15-25分钟) - 8个数据集 (推荐)
-python run_standard_robustness_test.py
-
-# 3. 完整交互式测试 (自选数据集)
-python compare_methods_outlier_robustness.py
+python run_experiments.py --quick         # 快速鲁棒性测试 (3-5分钟)
+python run_experiments.py --standard      # 标准鲁棒性测试 (15-25分钟)  
+python run_experiments.py --comparison    # 方法对比分析
+python run_experiments.py --interactive   # 交互式实验设计
 ```
 
-##### 支持的数据集：
+### 📋 环境要求
 
-| 数据集 | 样本数 | 特征数 | 类别数 | 规模 | 特点 |
-|-------|-------|-------|-------|------|-----|
-| Iris | 150 | 4 | 3 | small | 经典平衡数据集 |
-| Wine | 178 | 13 | 3 | small | 轻微不平衡 |
-| Breast Cancer | 569 | 30 | 2 | small | 医疗诊断数据 |
-| Optical Digits | 1,797 | 64 | 10 | small | 手写数字识别 |
-| Digits | 1,797 | 64 | 10 | medium | 数字识别 |
-| Synthetic Imbalanced | 5,000 | 20 | 5 | medium | 合成不平衡数据 |
-| Forest Covertype | 10,000 | 54 | 7 | medium | 森林覆盖预测 |
-| Letter Recognition | 20,000 | 16 | 26 | medium | 26类字母识别 |
-| MNIST | 15,000 | 784 | 10 | large | 手写数字图像 |
-| Fashion-MNIST | 20,000 | 784 | 10 | large | 服装图像分类 |
+- Python 3.7+ 
+- PyTorch, scikit-learn, matplotlib, pandas, numpy, seaborn
+- 推荐使用 `base` conda环境
 
-##### 测试配置：
+### 🔄 项目架构
 
-- **噪声水平**: 0%, 5%, 10%, 15%, 20%
-- **数据分割**: 70% train / 15% val / 15% test
+> **最新版本**: 项目已完成模块化重构，代码结构更加清晰。
+>
+> - ✅ **统一入口**: `python run_experiments.py` 提供所有实验功能
+> - ✅ **模块化设计**: 实验逻辑已整理到 `src/experiments/` 目录
+> - ✅ **简化使用**: 一键运行各类实验，支持交互式配置
+
+## 📊 支持的数据集与实验
+
+### 数据集概览
+项目支持 **10个多样化数据集**，涵盖不同规模和特点：
+
+- **小型数据集**: Iris, Wine, Breast Cancer, Optical Digits  
+- **中型数据集**: Digits, Synthetic Imbalanced, Forest Covertype, Letter Recognition
+- **大型数据集**: MNIST, Fashion-MNIST
+
+总计 **74,000+ 样本**，适合不同规模的实验需求。
+
+### 实验配置
+- **鲁棒性测试**: 0%, 5%, 10%, 15%, 20% 标签噪声
 - **方法对比**: CAAC(Cauchy), CAAC(Gaussian), MLP(Softmax), MLP(OvR), MLP(Hinge)
-- **输出**: 详细报告、鲁棒性曲线、热力图、原始数据
-
-#### 🔬 基础性能测试
-
-##### 1. 运行单个数据集实验
-
-```bash
-# 进入实验目录
-cd src/experiments
-
-# 运行 Iris 数据集实验
-python run_experiments.py --dataset iris
-
-# 运行 Wine 数据集实验
-python run_experiments.py --dataset wine
-
-# 运行 Breast Cancer 数据集实验
-python run_experiments.py --dataset breast_cancer
-
-# 运行 Digits 数据集实验
-python run_experiments.py --dataset digits
-```
-
-##### 2. 批量运行所有实验
-
-```bash
-# 在项目根目录运行
-python run_all_experiments.py
-
-# 包含方法比较报告
-python run_all_experiments.py --comparison
-```
-
-##### 3. 生成实验报告
-
-```bash
-# 分析已有实验结果并生成详细报告
-python generate_experiment_report.py
-
-# 指定结果目录
-python generate_experiment_report.py --results_dir results --output_dir reports
-```
+- **数据分割**: 70% train / 15% val / 15% test
+- **输出格式**: JSON数据 + 可视化图表
 
 ## 实验结果
 
@@ -223,54 +179,47 @@ python generate_experiment_report.py --results_dir results --output_dir reports
 3. 在多个标准数据集上验证了方法的有效性
 4. 提供了详细的不确定性分析和可解释性研究
 
-## 🚀 快速命令参考
+## 🚀 快速使用指南
 
-### 查看所有测试选项
+### 主要命令 (推荐使用)
 ```bash
-python show_test_options.py  # 显示详细的测试选项和使用说明
+# 查看所有实验选项
+python run_experiments.py
+
+# 快速验证环境 (3-5分钟)
+python run_experiments.py --quick
+
+# 标准鲁棒性测试 (15-25分钟)
+python run_experiments.py --standard
+
+# 交互式实验设计
+python run_experiments.py --interactive
+
+# 方法对比分析
+python run_experiments.py --comparison
 ```
 
-### 鲁棒性测试 (推荐)
+### 环境准备
 ```bash
-# 快速验证 (5分钟)
-python run_quick_robustness_test.py
-
-# 标准测试 (25分钟, 推荐用于研究)
-python run_standard_robustness_test.py
-
-# 交互式自定义测试
-python compare_methods_outlier_robustness.py
-```
-
-### 数据集和环境测试
-```bash
-# 测试数据集加载
-python test_new_datasets.py
-
-# 检查环境依赖
+# 激活conda环境
 conda activate base
+
+# 确保依赖已安装
 pip install torch scikit-learn matplotlib pandas numpy seaborn
 ```
 
-### 基础性能测试
-```bash
-# 批量基础测试
-python run_all_experiments.py --comparison
+### 结果查看
+实验完成后，结果保存在 `results/` 目录：
+- 📊 可视化图表 (`.png` 文件)
+- 📈 详细数据 (`.csv` 文件) 
+- 📝 实验报告 (`.md` 文件)
 
-# 单数据集测试
-cd src/experiments
-python run_experiments.py --dataset iris
-```
+## 📁 核心文件说明
 
-## 📁 重要文件说明
-
-- `compare_methods_outlier_robustness.py` - 主要的鲁棒性测试脚本
-- `run_standard_robustness_test.py` - 一键标准测试
-- `run_quick_robustness_test.py` - 一键快速测试  
-- `show_test_options.py` - 测试选项概览
-- `test_new_datasets.py` - 数据集功能测试
-- `results/` - 所有实验结果和报告
-- `src/` - 源代码和模型实现
+- **主入口**: `run_experiments.py` - 统一的实验运行接口
+- **核心算法**: `src/models/caac_ovr_model.py` - CAAC算法实现
+- **理论基础**: `docs/theory/motivation.md` - 数学原理和动机
+- **快速指南**: `QUICK_START.md` - 详细的使用说明
 
 ## 许可证
 
