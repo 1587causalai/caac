@@ -23,6 +23,37 @@
 6. `OvRCrossEntropyMLPModel` - OvR交叉熵多层感知机
 7. `CrammerSingerMLPModel` - Crammer & Singer铰链损失
 
+### 1.0.1 唯一性约束扩展功能
+
+**新增功能**: CAAC系列方法支持可选的**潜在向量采样唯一性约束**
+
+**⚠️ 实验发现**: 唯一性约束在实际应用中倾向于降低分类准确率，主要用作**理论对照研究**。
+
+**功能参数**:
+- `uniqueness_constraint`: 布尔值，是否启用唯一性约束 (默认 `False`)
+- `uniqueness_samples`: 整数，每个样本的采样次数 (建议 `3`)
+- `uniqueness_weight`: 浮点数，约束损失权重 (建议 `0.05`)
+
+**实现原理**:
+- 对每个样本从其潜在分布中采样多个实例化向量
+- 使用最大-次大间隔约束确保每个采样实例的决策唯一性
+- 采样次数和权重共同控制约束强度
+
+**推荐配置**:
+```python
+# 理论对照研究配置
+model = CAACOvRModel(
+    uniqueness_constraint=True,
+    uniqueness_samples=3,        # 最小采样次数
+    uniqueness_weight=0.05       # 较低权重，减少对准确率的影响
+)
+```
+
+**使用建议**:
+- **主要用途**: 理论研究和方法论比较
+- **不推荐**: 追求最高准确率的生产环境
+- **适用**: 需要严格决策一致性的特殊场景
+
 ### 1.1 架构设计原则
 
 - **统一性**: 所有方法共享相同的网络架构
@@ -200,6 +231,21 @@ class ActionNetwork(nn.Module):
             
         else:
             raise ValueError(f"Unsupported distribution type: {distribution_type}")
+
+    def compute_scores_from_samples(self, samples):
+        """
+        直接从采样的潜在向量计算得分 (唯一性约束专用)
+        
+        Args:
+            samples: [batch_size, n_samples, latent_dim] - 采样的潜在向量实例
+        
+        Returns:
+            scores: [batch_size, n_samples, n_classes] - 每个采样的确定性得分
+        """
+        W, b = self.get_weights()
+        # 批量矩阵运算：samples @ W.T + b
+        scores = torch.matmul(samples, W.T) + b.unsqueeze(0).unsqueeze(0)
+        return scores
 ```
 
 **设计特点**:

@@ -1,9 +1,45 @@
 #!/usr/bin/env python3
 """
-比较不同分类方法的实验脚本
-使用统一网络架构，仅损失函数不同，确保公平比较
-包括: CAAC分类器, 标准MLP, Focal Loss, Label Smoothing等
-与经典机器学习方法进行性能比较
+分类方法比较实验脚本
+
+本脚本实现了基于统一神经网络架构的多种分类方法性能比较，
+确保公平对比不同的损失函数、概率建模策略和阈值参数设定的效果。
+
+支持的方法：
+1. 统一架构方法（11种）：
+   - CAAC OvR (Cauchy) - 柯西分布 + 固定阈值
+   - CAAC OvR (Cauchy, Learnable) - 柯西分布 + 可学习阈值  
+   - CAAC OvR (Gaussian) - 高斯分布 + 固定阈值
+   - CAAC OvR (Gaussian, Learnable) - 高斯分布 + 可学习阈值
+   - CAAC Cauchy (Uniqueness) - 柯西分布 + 唯一性约束
+   - CAAC Gaussian (Uniqueness) - 高斯分布 + 唯一性约束
+   - CAAC Cauchy (Learnable+Uniqueness) - 柯西分布 + 可学习阈值 + 唯一性约束
+   - CAAC Gaussian (Learnable+Uniqueness) - 高斯分布 + 可学习阈值 + 唯一性约束
+   - MLP (Softmax) - 标准多层感知机
+   - MLP (OvR Cross Entropy) - OvR策略
+   - MLP (Crammer & Singer Hinge) - 铰链损失
+
+2. 经典机器学习方法（5种）：
+   - Softmax Regression
+   - OvR Logistic Regression
+   - SVM with RBF kernel
+   - Random Forest
+   - MLP-Sklearn
+
+唯一性约束功能：
+- 对CAAC方法（柯西和高斯分布）添加可选的潜在向量采样唯一性约束
+- 通过采样多个实例化向量并应用最大-次大间隔约束来增强决策确定性
+- 采样次数控制约束强度（默认3次采样，权重0.05）
+- ⚠️ 实验发现：倾向于降低准确率，主要用作理论对照研究
+
+实验配置：
+- 统一的神经网络架构确保公平比较
+- 多个真实数据集评估
+- 标准化评估指标（准确率、精确率、召回率、F1分数）
+- 可视化结果和详细报告生成
+
+运行方式：
+python compare_methods.py
 """
 
 import numpy as np
@@ -137,6 +173,32 @@ def create_comparison_methods():
             'type': 'unified',
             'model_class': CrammerSingerMLPModel,
             'params': common_params
+        },
+        
+        # 唯一性约束变体（CAAC方法的扩展）- 作为理论对照研究
+        'CAAC_Cauchy_Unique': {
+            'name': 'CAAC Cauchy (Uniqueness)',
+            'type': 'unified',
+            'model_class': CAACOvRModel,
+            'params': {**common_params, 'learnable_thresholds': False, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+        },
+        'CAAC_Gaussian_Unique': {
+            'name': 'CAAC Gaussian (Uniqueness)',
+            'type': 'unified',
+            'model_class': CAACOvRGaussianModel,
+            'params': {**common_params, 'learnable_thresholds': False, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+        },
+        'CAAC_Cauchy_Learnable_Unique': {
+            'name': 'CAAC Cauchy (Learnable+Uniqueness)',
+            'type': 'unified',
+            'model_class': CAACOvRModel,
+            'params': {**common_params, 'learnable_thresholds': True, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+        },
+        'CAAC_Gaussian_Learnable_Unique': {
+            'name': 'CAAC Gaussian (Learnable+Uniqueness)',
+            'type': 'unified',
+            'model_class': CAACOvRGaussianModel,
+            'params': {**common_params, 'learnable_thresholds': True, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
         },
         
         # 经典机器学习方法作为基准
@@ -631,9 +693,11 @@ def main():
     from datetime import datetime
     import os
     
-    print("🚀 CAAC OvR Cauchy Scale Parameter Analysis")
-    print("Core Research Question: Does using Cauchy distribution scale parameters improve classification?")
+    print("🚀 CAAC OvR Comprehensive Comparison Experiment")
+    print("Core Research Question: Performance comparison of different classification approaches")
     print("Unified Architecture: FeatureNet → AbductionNet → ActionNet")
+    print("Methods: 11 unified architecture + 5 classical ML methods")
+    print("New Feature: Uniqueness constraint for sampling-based decision consistency")
     print("Datasets: Iris, Wine, Breast Cancer, Digits")
     print()
     
@@ -644,6 +708,7 @@ def main():
     
     # Run comparison experiments
     print("🔬 第一步：运行所有方法比较实验")
+    print("   包括：7种基础方法 + 4种唯一性约束变体")
     results_df = run_comparison_experiments()
     
     # Create visualizations with English labels
@@ -669,7 +734,9 @@ def main():
     print(f"📄 完整报告: {report_file}")
     print("\n🎯 实验报告包含:")
     print("   • 详细的方法对比分析")
-    print("   • 柯西分布尺度参数效果验证")
+    print("   • 柯西分布vs高斯分布效果对比")
+    print("   • 可学习阈值效果验证")
+    print("   • 唯一性约束功能测试")
     print("   • 适用场景推荐")
     print("   • 改进建议和未来方向")
 

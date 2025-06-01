@@ -19,6 +19,19 @@
 6. **MLP (OvR Cross Entropy)** - OvR策略
 7. **MLP (Crammer & Singer Hinge)** - 铰链损失
 
+### 唯一性约束扩展
+
+**新增功能**: 对于 CAAC OvR 方法（柯西分布和高斯分布），支持可选的**潜在向量采样唯一性约束**，通过采样实例化来增强决策的确定性和鲁棒性。
+
+**约束原理**: 
+- 对每个样本的潜在分布采样多个实例化向量
+- 确保每个采样实例只有一个类别的得分超过其阈值（最大-次大间隔约束）
+- 采样次数控制约束强度：采样越多，约束越强
+
+**参数控制**:
+- `uniqueness_constraint`: 是否启用唯一性约束 (默认 False)
+- `uniqueness_samples`: 每个样本的采样次数 (默认 10)
+
 ### 统一网络架构
 
 所有五种方法都采用相同的三阶段神经网络架构：
@@ -284,22 +297,143 @@ P_k(z) = P(S_k > C_k \mid z) = 1 - \Phi\left(\frac{C_k - \text{loc}(S_k; z)}{\te
 **优势**：
 - **精确边界调节**：高斯分布的smooth特性配合可学习阈值
 - **概率校准**：可能改善概率输出的校准度
-- **理论一致性**：保持高斯假设下的数学一致性
 
-### 代码实现对应
+---
 
-```python
-# 初始化可学习阈值参数
-if learnable_thresholds:
-    self.thresholds = nn.Parameter(torch.zeros(n_classes))
-else:
-    self.register_buffer('thresholds', torch.zeros(n_classes))
+## 唯一性约束增强 (CAAC OvR 方法的可选扩展)
 
-# 使用可学习阈值计算概率
-normalized_thresholds = (self.thresholds.unsqueeze(0) - class_locations) / class_stds
-standard_normal = Normal(0, 1)
-P_k = 1 - standard_normal.cdf(normalized_thresholds)
+### 核心思想
+对于 CAAC OvR 方法（柯西分布和高斯分布），通过采样潜在向量的多个实例化，确保在单个采样实例层面上的决策唯一性，增强模型的确定性和鲁棒性。
+
+### ⚠️ 实验发现与使用建议
+
+**实验观察**：
+- 唯一性约束在实际应用中倾向于**降低分类准确率**
+- 约束过于严格可能干扰正常的概率学习过程
+- 训练初期的约束违反过多会导致梯度方向混乱
+
+**建议配置**：
+- `uniqueness_samples=3`：最小采样次数，减少计算负担
+- `uniqueness_weight=0.05`：较低权重，minimize对主要损失的影响
+- **定位**：主要用作**理论对照研究**，验证约束机制的影响
+
+**适用场景**：
+- 理论研究和方法论比较
+- 特殊应用场景（如需要严格决策一致性）
+- 不推荐用于追求最高准确率的实际应用
+
+### 理论基础
+
+**动机**：在CAAC框架中，我们处理的是潜在表征**随机变量** $\mathbf{U}$，而非确定性值。传统方法仅在**分布层面**（通过概率 $P_k$）进行决策，但我们希望在**采样实例层面**也能实现决策的唯一性。
+
+**唯一性约束定义**：对于任意一个从潜在分布中采样得到的具体向量实例 $\mathbf{u}^{(m)}$，我们希望：
+```math
+\sum_{k=1}^{N} \mathbb{I}(S_k(\mathbf{u}^{(m)}) > C_k) = 1
 ```
+
+其中：
+- $\mathbf{u}^{(m)}$ 是第 $m$ 个采样实例
+- $S_k(\mathbf{u}^{(m)}) = \sum_{j=1}^{d_{\text{latent}}} A_{kj} u_j^{(m)} + B_k$ 是基于采样实例的确定性得分
+- $\mathbb{I}(\cdot)$ 是指示函数
+
+### 数学推导
+
+**第一步：采样过程**
+
+对于每个输入样本 $x_i$，从其对应的潜在分布中采样 $M$ 个实例：
+
+**柯西分布采样**：
+```math
+\mathbf{u}_i^{(m)} = \boldsymbol{\mu}(z_i) + \boldsymbol{\sigma}(z_i) \odot \tan\left(\pi \left(\mathbf{p}^{(m)} - 0.5\right)\right)
+```
+其中 $\mathbf{p}^{(m)} \sim \text{Uniform}(0,1)^{d_{\text{latent}}}$
+
+**高斯分布采样**：
+```math
+\mathbf{u}_i^{(m)} = \boldsymbol{\mu}(z_i) + \boldsymbol{\sigma}(z_i) \odot \boldsymbol{\epsilon}^{(m)}
+```
+其中 $\boldsymbol{\epsilon}^{(m)} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
+
+**第二步：得分计算**
+
+对每个采样实例计算类别得分：
+```math
+S_{ik}^{(m)} = \sum_{j=1}^{d_{\text{latent}}} A_{kj} u_{ij}^{(m)} + B_k
+```
+
+矩阵形式：
+```math
+\mathbf{S}_i^{(m)} = \mathbf{A} \mathbf{u}_i^{(m)} + \mathbf{B}
+```
+
+**第三步：最大-次大间隔约束**
+
+为了实现可微的唯一性约束，我们采用**最大-次大间隔约束**：
+
+1. 找到每个采样的最大和次大得分：
+```math
+k_{\max}^{(m)} = \arg\max_{k} S_{ik}^{(m)}, \quad s_{\max}^{(m)} = S_{i,k_{\max}^{(m)}}^{(m)}
+```
+```math
+k_{\text{2nd}}^{(m)} = \arg\max_{k \neq k_{\max}^{(m)}} S_{ik}^{(m)}, \quad s_{\text{2nd}}^{(m)} = S_{i,k_{\text{2nd}}^{(m)}}^{(m)}
+```
+
+2. 计算约束违反损失：
+```math
+L_{\text{unique}}^{(m)} = \text{ReLU}(C_{k_{\max}^{(m)}} - s_{\max}^{(m)}) + \text{ReLU}(s_{\text{2nd}}^{(m)} - C_{k_{\text{2nd}}^{(m)}})
+```
+
+**第四步：总损失函数**
+
+结合原始BCE损失和唯一性约束损失：
+```math
+L_{\text{total}} = L_{\text{BCE}} + \sum_{i=1}^{|\mathcal{B}|} \sum_{m=1}^{M} L_{\text{unique}}^{(m)}
+```
+
+**约束强度控制**：
+- 采样次数 $M$ 直接控制约束强度：$M$ 越大，约束越强
+- 损失采用**累加**而非平均，自然实现"采样越多约束越强"
+
+### 理论性质
+
+**1. 决策确定性**：确保每个采样实例在得分层面有明确的"赢家"
+
+**2. 鲁棒性增强**：通过间隔要求，增强对噪声的鲁棒性
+
+**3. 可微性**：使用ReLU函数代替不可微的指示函数
+
+**4. 灵活性**：通过参数 $M$ 控制约束强度，支持渐进式训练
+
+### 实现细节
+
+**批处理矩阵运算**：
+```python
+# 批量采样 [batch_size, n_samples, latent_dim]
+if distribution_type == 'cauchy':
+    p = torch.rand(batch_size, n_samples, latent_dim, device=device)
+    standard_samples = torch.tan(pi * (p - 0.5))
+elif distribution_type == 'gaussian':
+    standard_samples = torch.randn(batch_size, n_samples, latent_dim, device=device)
+
+samples = location_param.unsqueeze(1) + scale_param.unsqueeze(1) * standard_samples
+
+# 批量得分计算 [batch_size, n_samples, n_classes]
+scores = torch.matmul(samples, W.T) + b.unsqueeze(0).unsqueeze(0)
+
+# 最大-次大间隔约束
+top2_scores, top2_indices = torch.topk(scores, k=min(2, n_classes), dim=2)
+max_scores = top2_scores[:, :, 0]
+second_max_scores = top2_scores[:, :, 1]
+
+# 约束损失计算
+max_violation = F.relu(max_thresholds - max_scores)
+second_violation = F.relu(second_max_scores - second_max_thresholds)
+uniqueness_loss = torch.sum(max_violation + second_violation)
+```
+
+**参数配置**：
+- `uniqueness_constraint=True`：启用约束
+- `uniqueness_samples=M`：设置采样次数（建议 10-50）
 
 ---
 
