@@ -28,7 +28,8 @@ from src.models.caac_ovr_model import (
     CAACOvRModel, 
     SoftmaxMLPModel,
     OvRCrossEntropyMLPModel,
-    CAACOvRGaussianModel
+    CAACOvRGaussianModel,
+    CrammerSingerMLPModel
 )
 
 # 设置随机种子确保结果可重现
@@ -79,9 +80,10 @@ def load_datasets():
 def create_comparison_methods():
     """创建用于比较的分类方法"""
     # 统一的网络架构参数
+    # 重要概念：d_latent = d_repr，因果表征维度等于特征表征维度
     common_params = {
         'representation_dim': 64,
-        'latent_dim': 64,
+        'latent_dim': None,  # 默认等于representation_dim，体现概念对齐
         'feature_hidden_dims': [64],
         'abduction_hidden_dims': [128, 64],
         'lr': 0.001,
@@ -93,18 +95,30 @@ def create_comparison_methods():
     }
     
     methods = {
-        # 核心对比：四种统一架构方法
+        # 核心对比：七种统一架构方法（包含可学习阈值变体）
         'CAAC_Cauchy': {
-            'name': 'CAAC OvR (Cauchy Distribution)',
+            'name': 'CAAC OvR (Cauchy)',
             'type': 'unified',
             'model_class': CAACOvRModel,
-            'params': common_params
+            'params': {**common_params, 'learnable_thresholds': False}
+        },
+        'CAAC_Cauchy_Learnable': {
+            'name': 'CAAC OvR (Cauchy, Learnable)',
+            'type': 'unified',
+            'model_class': CAACOvRModel,
+            'params': {**common_params, 'learnable_thresholds': True}
         },
         'CAAC_Gaussian': {
-            'name': 'CAAC OvR (Gaussian Distribution)',
+            'name': 'CAAC OvR (Gaussian)',
             'type': 'unified',
             'model_class': CAACOvRGaussianModel,
-            'params': common_params
+            'params': {**common_params, 'learnable_thresholds': False}
+        },
+        'CAAC_Gaussian_Learnable': {
+            'name': 'CAAC OvR (Gaussian, Learnable)',
+            'type': 'unified',
+            'model_class': CAACOvRGaussianModel,
+            'params': {**common_params, 'learnable_thresholds': True}
         },
         'MLP_Softmax': {
             'name': 'MLP (Softmax)',
@@ -118,20 +132,26 @@ def create_comparison_methods():
             'model_class': OvRCrossEntropyMLPModel,
             'params': common_params
         },
+        'MLP_Hinge': {
+            'name': 'MLP (Crammer & Singer Hinge)',
+            'type': 'unified',
+            'model_class': CrammerSingerMLPModel,
+            'params': common_params
+        },
         
         # 经典机器学习方法作为基准
         'Softmax_LR': {
-            'name': 'Multinomial Logistic Regression (Softmax)',
+            'name': 'Softmax Regression',
             'type': 'sklearn',
             'model': LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000, random_state=42)
         },
         'Standard_OvR': {
-            'name': 'Standard One-vs-Rest',
+            'name': 'OvR Logistic',
             'type': 'sklearn',
             'model': OneVsRestClassifier(LogisticRegression(max_iter=1000, random_state=42))
         },
         'SVM_RBF': {
-            'name': 'SVM (RBF kernel)',
+            'name': 'SVM-RBF',
             'type': 'sklearn',
             'model': SVC(kernel='rbf', random_state=42, probability=True)
         },
@@ -141,7 +161,7 @@ def create_comparison_methods():
             'model': RandomForestClassifier(n_estimators=100, random_state=42)
         },
         'Sklearn_MLP': {
-            'name': 'Sklearn MLP',
+            'name': 'MLP-Sklearn',
             'type': 'sklearn',
             'model': MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=500, random_state=42)
         }
@@ -371,9 +391,14 @@ def generate_detailed_report(results_df, summary):
 
 ### 测试的方法架构
 所有神经网络方法都采用相同的统一架构：
-- **FeatureNet**: 特征提取网络 (输入维度 → 64维表示)
-- **AbductionNet**: 溯因推理网络 (64维 → 潜在空间64维)  
-- **ActionNet**: 行动决策网络 (64维 → 类别数量)
+- **FeatureNet**: 特征提取网络 (输入维度 → 64维**确定性特征表征**)
+- **AbductionNet**: 溯因推理网络 (64维 → 64维**因果表征随机变量**参数)  
+- **ActionNet**: 行动决策网络 (64维 → **类别数量**的得分)
+
+**重要概念对齐**: 
+- 特征表征维度 = 因果表征维度 (d_repr = d_latent = 64)
+- 特征表征是确定性数值，因果表征是随机变量（位置+尺度参数）
+- 得分维度等于类别数量
 
 ### 实验方法
 
@@ -384,11 +409,11 @@ def generate_detailed_report(results_df, summary):
 4. **MLP (OvR Cross Entropy)** - 标准MLP，使用OvR策略的交叉熵损失函数, 仅仅使用位置参数计算损失
 
 #### 经典机器学习基准方法
-5. **Multinomial Logistic Regression (Softmax)** - 多项式logistic回归，直接多分类扩展
-6. **Standard One-vs-Rest** - 标准一对其余策略
-7. **SVM (RBF kernel)** - 径向基函数核支持向量机
+5. **Softmax Regression** - 多项式logistic回归
+6. **OvR Logistic** - 一对其余逻辑回归
+7. **SVM-RBF** - 径向基函数支持向量机
 8. **Random Forest** - 随机森林集成方法
-9. **Sklearn MLP** - Scikit-learn实现的多层感知机
+9. **MLP-Sklearn** - Scikit-learn多层感知机
 
 ### 测试数据集
 - **Iris鸢尾花数据集**: 3类, 4特征, 150样本

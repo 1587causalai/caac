@@ -138,19 +138,25 @@ class UnifiedClassificationNetwork(nn.Module):
 class CAACOvRModel:
     """
     CAAC OvR分类模型 - 使用柯西分布损失函数
+    
+    支持可学习阈值变体：
+    - learnable_thresholds=False: 固定阈值 C_k = 0 (默认)
+    - learnable_thresholds=True: 可学习阈值 C_k 作为模型参数
     """
     def __init__(self, input_dim, 
                  representation_dim=64, 
-                 latent_dim=64, 
+                 latent_dim=None,  # 默认等于representation_dim，体现d_latent = d_repr的概念
                  n_classes=2,
                  feature_hidden_dims=[64], 
                  abduction_hidden_dims=[128, 64], 
                  lr=0.001, batch_size=32, epochs=100, device=None,
-                 early_stopping_patience=None, early_stopping_min_delta=0.0001):
+                 early_stopping_patience=None, early_stopping_min_delta=0.0001,
+                 learnable_thresholds=False):  # 新增：是否使用可学习阈值
         
         self.input_dim = input_dim
         self.representation_dim = representation_dim
-        self.latent_dim = latent_dim
+        # 概念对齐：因果表征维度默认等于特征表征维度 (d_latent = d_repr)
+        self.latent_dim = latent_dim if latent_dim is not None else representation_dim
         self.n_classes = n_classes
         self.feature_hidden_dims = feature_hidden_dims
         self.abduction_hidden_dims = abduction_hidden_dims
@@ -159,6 +165,7 @@ class CAACOvRModel:
         self.epochs = epochs
         self.early_stopping_patience = early_stopping_patience
         self.early_stopping_min_delta = early_stopping_min_delta
+        self.learnable_thresholds = learnable_thresholds  # 新增：可学习阈值标志
         self.device_str = str(device)
 
         if device is None:
@@ -175,7 +182,18 @@ class CAACOvRModel:
             self.input_dim, self.representation_dim, self.latent_dim, self.n_classes,
             self.feature_hidden_dims, self.abduction_hidden_dims
         ).to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # 如果使用可学习阈值，创建阈值参数
+        if self.learnable_thresholds:
+            self.thresholds = nn.Parameter(torch.zeros(self.n_classes, device=self.device))
+        else:
+            self.thresholds = None
+            
+        # 设置优化器参数，包含模型参数和可能的阈值参数
+        params_to_optimize = list(self.model.parameters())
+        if self.learnable_thresholds and self.thresholds is not None:
+            params_to_optimize.append(self.thresholds)
+        self.optimizer = torch.optim.Adam(params_to_optimize, lr=self.lr)
     
     def compute_loss(self, y_true, logits, location_param, scale_param):
         """
@@ -193,8 +211,11 @@ class CAACOvRModel:
             location_param, scale_param, distribution_type='cauchy'
         )
         
-        # 设置阈值 C_k = 0 (可以设为可学习参数)
-        thresholds = torch.zeros(n_classes, device=device)
+        # 根据设置使用固定阈值或可学习阈值
+        if self.learnable_thresholds and self.thresholds is not None:
+            thresholds = self.thresholds  # 使用可学习阈值参数
+        else:
+            thresholds = torch.zeros(n_classes, device=device)  # 使用固定阈值 C_k = 0
         
         # 计算柯西分布CDF：P_k = P(S_k > C_k) = 1 - F(C_k; loc, scale)
         pi = torch.tensor(np.pi, device=device)
@@ -328,7 +349,8 @@ class CAACOvRModel:
             'epochs': self.epochs,
             'device': self.device_str,
             'early_stopping_patience': self.early_stopping_patience,
-            'early_stopping_min_delta': self.early_stopping_min_delta
+            'early_stopping_min_delta': self.early_stopping_min_delta,
+            'learnable_thresholds': self.learnable_thresholds
         }
 
     def set_params(self, **params):
@@ -344,7 +366,7 @@ class SoftmaxMLPModel:
     """
     def __init__(self, input_dim, 
                  representation_dim=64, 
-                 latent_dim=64, 
+                 latent_dim=None,  # 默认等于representation_dim，体现d_latent = d_repr的概念
                  n_classes=2,
                  feature_hidden_dims=[64], 
                  abduction_hidden_dims=[128, 64], 
@@ -353,7 +375,8 @@ class SoftmaxMLPModel:
         
         self.input_dim = input_dim
         self.representation_dim = representation_dim
-        self.latent_dim = latent_dim
+        # 概念对齐：因果表征维度默认等于特征表征维度 (d_latent = d_repr)
+        self.latent_dim = latent_dim if latent_dim is not None else representation_dim
         self.n_classes = n_classes
         self.feature_hidden_dims = feature_hidden_dims
         self.abduction_hidden_dims = abduction_hidden_dims
@@ -522,7 +545,7 @@ class OvRCrossEntropyMLPModel:
     """
     def __init__(self, input_dim, 
                  representation_dim=64, 
-                 latent_dim=64, 
+                 latent_dim=None,  # 默认等于representation_dim，体现d_latent = d_repr的概念
                  n_classes=2,
                  feature_hidden_dims=[64], 
                  abduction_hidden_dims=[128, 64], 
@@ -531,7 +554,8 @@ class OvRCrossEntropyMLPModel:
         
         self.input_dim = input_dim
         self.representation_dim = representation_dim
-        self.latent_dim = latent_dim
+        # 概念对齐：因果表征维度默认等于特征表征维度 (d_latent = d_repr)
+        self.latent_dim = latent_dim if latent_dim is not None else representation_dim
         self.n_classes = n_classes
         self.feature_hidden_dims = feature_hidden_dims
         self.abduction_hidden_dims = abduction_hidden_dims
@@ -697,19 +721,25 @@ class CAACOvRGaussianModel:
     """
     CAAC OvR (Gaussian Distribution) - 使用高斯分布而非柯西分布的CAAC分类模型
     对比研究：相同的CAAC框架但使用不同的概率分布
+    
+    支持可学习阈值变体：
+    - learnable_thresholds=False: 固定阈值 C_k = 0 (默认)
+    - learnable_thresholds=True: 可学习阈值 C_k 作为模型参数
     """
     def __init__(self, input_dim, 
                  representation_dim=64, 
-                 latent_dim=64, 
+                 latent_dim=None,  # 默认等于representation_dim，体现d_latent = d_repr的概念
                  n_classes=2,
                  feature_hidden_dims=[64], 
                  abduction_hidden_dims=[128, 64], 
                  lr=0.001, batch_size=32, epochs=100, device=None,
-                 early_stopping_patience=None, early_stopping_min_delta=0.0001):
+                 early_stopping_patience=None, early_stopping_min_delta=0.0001,
+                 learnable_thresholds=False):  # 新增：是否使用可学习阈值
         
         self.input_dim = input_dim
         self.representation_dim = representation_dim
-        self.latent_dim = latent_dim
+        # 概念对齐：因果表征维度默认等于特征表征维度 (d_latent = d_repr)
+        self.latent_dim = latent_dim if latent_dim is not None else representation_dim
         self.n_classes = n_classes
         self.feature_hidden_dims = feature_hidden_dims
         self.abduction_hidden_dims = abduction_hidden_dims
@@ -719,6 +749,7 @@ class CAACOvRGaussianModel:
         self.epochs = epochs
         self.early_stopping_patience = early_stopping_patience
         self.early_stopping_min_delta = early_stopping_min_delta
+        self.learnable_thresholds = learnable_thresholds  # 新增：可学习阈值标志
         self.device_str = str(device)
 
         if device is None:
@@ -735,7 +766,18 @@ class CAACOvRGaussianModel:
             self.input_dim, self.representation_dim, self.latent_dim, self.n_classes,
             self.feature_hidden_dims, self.abduction_hidden_dims
         ).to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # 如果使用可学习阈值，创建阈值参数
+        if self.learnable_thresholds:
+            self.thresholds = nn.Parameter(torch.zeros(self.n_classes, device=self.device))
+        else:
+            self.thresholds = None
+            
+        # 设置优化器参数，包含模型参数和可能的阈值参数
+        params_to_optimize = list(self.model.parameters())
+        if self.learnable_thresholds and self.thresholds is not None:
+            params_to_optimize.append(self.thresholds)
+        self.optimizer = torch.optim.Adam(params_to_optimize, lr=self.lr)
     
     def compute_loss(self, y_true, logits, location_param, scale_param):
         """
@@ -751,8 +793,11 @@ class CAACOvRGaussianModel:
             location_param, scale_param, distribution_type='gaussian'
         )
         
-        # 设置阈值 C_k = 0
-        thresholds = torch.zeros(n_classes, device=device)
+        # 根据设置使用固定阈值或可学习阈值
+        if self.learnable_thresholds and self.thresholds is not None:
+            thresholds = self.thresholds  # 使用可学习阈值参数
+        else:
+            thresholds = torch.zeros(n_classes, device=device)  # 使用固定阈值 C_k = 0
         
         # 计算高斯分布CDF：P_k = P(S_k > C_k) = 1 - Φ((C_k - mu) / sigma)
         normalized_thresholds = (thresholds.unsqueeze(0) - class_locations) / class_stds
@@ -874,6 +919,256 @@ class CAACOvRGaussianModel:
         probs = self.predict_proba(X)
         y_pred_encoded = np.argmax(probs, axis=1)
         return self.label_encoder.inverse_transform(y_pred_encoded)
+
+    def get_params(self, deep=True):
+        return {
+            'input_dim': self.input_dim,
+            'representation_dim': self.representation_dim,
+            'latent_dim': self.latent_dim,
+            'n_classes': self.n_classes,
+            'feature_hidden_dims': self.feature_hidden_dims,
+            'abduction_hidden_dims': self.abduction_hidden_dims,
+            
+            'lr': self.lr,
+            'batch_size': self.batch_size,
+            'epochs': self.epochs,
+            'device': self.device_str,
+            'early_stopping_patience': self.early_stopping_patience,
+            'early_stopping_min_delta': self.early_stopping_min_delta,
+            'learnable_thresholds': self.learnable_thresholds
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        return self
+
+class CrammerSingerMLPModel:
+    """
+    方法五：MLP (Crammer & Singer 多分类铰链损失) - CrammerSingerMLPModel
+    
+    核心思想：
+    - 采用Crammer & Singer多分类铰链损失，基于margin最大化原理
+    - 要求正确类别的分数比任何错误类别的分数至少高出固定margin值1
+    - 仅使用位置参数，通过几何margin优化进行训练
+    - 基于统计学习理论和VC维理论，泛化保证较强
+    """
+    
+    def __init__(self, input_dim, 
+                 representation_dim=64, 
+                 latent_dim=None,  # 默认等于representation_dim，体现d_latent = d_repr的概念
+                 n_classes=2,
+                 feature_hidden_dims=[64], 
+                 abduction_hidden_dims=[128, 64], 
+                 lr=0.001, batch_size=32, epochs=100, device=None,
+                 early_stopping_patience=None, early_stopping_min_delta=0.0001):
+        
+        self.input_dim = input_dim
+        self.representation_dim = representation_dim
+        self.latent_dim = latent_dim if latent_dim is not None else representation_dim
+        self.n_classes = n_classes
+        self.feature_hidden_dims = feature_hidden_dims
+        self.abduction_hidden_dims = abduction_hidden_dims
+        
+        self.lr = lr
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.early_stopping_patience = early_stopping_patience
+        self.early_stopping_min_delta = early_stopping_min_delta
+        self.device_str = str(device)
+
+        if device is None:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            self.device = device if isinstance(device, torch.device) else torch.device(device)
+        
+        self.label_encoder = LabelEncoder()
+        self._setup_model_optimizer()
+        self.history = {'train_loss': [], 'val_loss': [], 'train_time': 0, 'best_epoch': 0}
+    
+    def _setup_model_optimizer(self):
+        self.model = UnifiedClassificationNetwork(
+            self.input_dim, self.representation_dim, self.latent_dim, self.n_classes,
+            self.feature_hidden_dims, self.abduction_hidden_dims
+        ).to(self.device)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+    
+    def compute_loss(self, y_true, logits, location_param, scale_param):
+        """
+        Crammer & Singer 多分类铰链损失
+        
+        数学公式：
+        L = (1/|B|) * Σ_i max(0, max_{k≠y_i}(S_k^(i) - S_{y_i}^(i) + 1))
+        
+        其中：
+        - S_k^(i) 是第i个样本对类别k的分数（logits）
+        - y_i 是第i个样本的真实标签
+        - margin = 1 是固定的间隔要求
+        
+        物理含义：
+        - 要求正确类别分数比最高错误类别分数至少高出1个单位
+        - 当满足margin条件时损失为0，体现稀疏性
+        - 基于几何margin最大化，提供更好的泛化边界
+        
+        注意：仅使用logits（基于位置参数），完全忽略尺度参数scale_param
+        """
+        batch_size, n_classes = logits.shape
+        
+        # 第一步：获取正确类别的分数 S_y
+        correct_scores = logits.gather(1, y_true.unsqueeze(1)).squeeze(1)  # [batch_size]
+        
+        # 第二步：计算 margin_violation = S_k - S_y + 1 for all k ≠ y
+        margins = logits - correct_scores.unsqueeze(1) + 1.0  # [batch_size, n_classes]
+        
+        # 第三步：排除正确类别自身（避免 S_y - S_y + 1 = 1）
+        margins.scatter_(1, y_true.unsqueeze(1), 0)
+        
+        # 第四步：找到最大的margin违反 max_{k≠y}(S_k - S_y + 1)
+        max_margins, _ = margins.max(dim=1)  # [batch_size]
+        
+        # 第五步：应用ReLU得到铰链损失 max(0, margin_violation)
+        hinge_loss = F.relu(max_margins)
+        
+        return hinge_loss.mean()
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None, verbose=1):
+        # 编码标签
+        y_train_encoded = self.label_encoder.fit_transform(y_train)
+        self.n_classes = len(self.label_encoder.classes_)
+        
+        # 重新设置模型以匹配正确的类别数
+        self._setup_model_optimizer()
+        
+        X_train_tensor = torch.FloatTensor(X_train).to(self.device)
+        y_train_tensor = torch.LongTensor(y_train_encoded).to(self.device)
+        
+        best_val_loss = float('inf')
+        patience_counter = 0
+        best_model_state_dict = None
+        final_epoch_count = self.epochs 
+
+        has_validation = False
+        if X_val is not None and y_val is not None:
+            y_val_encoded = self.label_encoder.transform(y_val)
+            X_val_tensor = torch.FloatTensor(X_val).to(self.device)
+            y_val_tensor = torch.LongTensor(y_val_encoded).to(self.device)
+            has_validation = True
+        
+        effective_early_stopping_patience = self.early_stopping_patience
+        if not has_validation or self.early_stopping_patience is None or self.early_stopping_patience <= 0:
+            effective_early_stopping_patience = None
+        
+        train_dataset = torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
+        
+        start_time = time.time()
+        
+        for epoch in range(self.epochs):
+            final_epoch_count = epoch + 1 
+            self.model.train()
+            epoch_train_loss = 0
+            active_samples_count = 0  # 统计违反margin的样本数量
+            
+            for batch_X, batch_y_true in train_loader:
+                logits, location_param, scale_param = self.model(batch_X)
+                loss = self.compute_loss(batch_y_true, logits, location_param, scale_param)
+                
+                # 统计active samples（违反margin的样本）
+                with torch.no_grad():
+                    correct_scores = logits.gather(1, batch_y_true.unsqueeze(1)).squeeze(1)
+                    margins = logits - correct_scores.unsqueeze(1) + 1.0
+                    margins.scatter_(1, batch_y_true.unsqueeze(1), 0)
+                    max_margins, _ = margins.max(dim=1)
+                    active_samples_count += (max_margins > 0).sum().item()
+                
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                epoch_train_loss += loss.item()
+            
+            avg_train_loss = epoch_train_loss / len(train_loader) if len(train_loader) > 0 else 0
+            self.history['train_loss'].append(avg_train_loss)
+            
+            current_val_loss = float('inf')
+            if has_validation:
+                self.model.eval()
+                with torch.no_grad():
+                    logits_val, loc_param_val, scale_param_val = self.model(X_val_tensor)
+                    current_val_loss = self.compute_loss(y_val_tensor, logits_val, loc_param_val, scale_param_val).item()
+                self.history['val_loss'].append(current_val_loss)
+                
+                # Early stopping logic
+                if effective_early_stopping_patience is not None:
+                    if current_val_loss < best_val_loss - self.early_stopping_min_delta:
+                        best_val_loss = current_val_loss
+                        patience_counter = 0
+                        best_model_state_dict = self.model.state_dict().copy()
+                        self.history['best_epoch'] = epoch + 1
+                    else:
+                        patience_counter += 1
+                        if patience_counter >= effective_early_stopping_patience:
+                            if verbose >= 1:
+                                print(f"Early stopping at epoch {epoch+1}")
+                            break
+                else:
+                    best_model_state_dict = self.model.state_dict().copy()
+                    self.history['best_epoch'] = epoch + 1
+            else:
+                best_model_state_dict = self.model.state_dict().copy()
+                self.history['best_epoch'] = epoch + 1
+            
+            if verbose >= 2 or (verbose == 1 and (epoch+1) % 20 == 0):
+                msg = f"Epoch {epoch+1:4d}/{self.epochs}, Train Loss: {avg_train_loss:.6f}"
+                if has_validation:
+                    msg += f", Val Loss: {current_val_loss:.6f}"
+                # 显示active samples比例，体现稀疏性特点
+                total_samples = len(X_train_tensor)
+                active_ratio = active_samples_count / total_samples if total_samples > 0 else 0
+                msg += f", Active: {active_ratio:.1%}"
+                print(msg)
+        
+        end_time = time.time()
+        self.history['train_time'] = end_time - start_time
+        
+        # Load best model
+        if best_model_state_dict is not None:
+            self.model.load_state_dict(best_model_state_dict)
+        
+        if verbose >= 1:
+            print(f"Training completed in {self.history['train_time']:.2f}s, Best epoch: {self.history['best_epoch']}")
+
+    def predict_proba(self, X):
+        """
+        预测概率输出
+        
+        注意：铰链损失训练时不直接依赖概率，此方法仅为API兼容性
+        通过Softmax将类别分数转换为概率分布（可选的概率化输出）
+        """
+        self.model.eval()
+        X_tensor = torch.FloatTensor(X).to(self.device)
+        with torch.no_grad():
+            logits, _, _ = self.model(X_tensor)
+            # 使用Softmax将分数转为概率（仅为兼容性，训练时不依赖此概率）
+            probs = F.softmax(logits, dim=1)
+        return probs.cpu().numpy()
+
+    def predict(self, X):
+        """
+        预测类别标签
+        
+        基于argmax决策规则：ŷ = argmax_k S_k
+        这是铰链损失的原生预测方式，不依赖概率计算
+        """
+        self.model.eval()
+        X_tensor = torch.FloatTensor(X).to(self.device)
+        with torch.no_grad():
+            logits, _, _ = self.model(X_tensor)
+            # 直接基于分数进行argmax预测（铰链损失的原生方式）
+            y_pred_encoded = torch.argmax(logits, dim=1)
+        return self.label_encoder.inverse_transform(y_pred_encoded.cpu().numpy())
 
     def get_params(self, deep=True):
         return {
