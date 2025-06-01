@@ -13,12 +13,8 @@
   - [结果解读](tutorials/result_interpretation.md) -->
 
 - **🔬 实验结果**
-  - [快速鲁棒性测试](results/quick_robustness_report_20250602_000819.md)
-  - [标准鲁棒性测试](results/standard_robustness_report_20250602_002542.md)
-  - [鲁棒性分析](results/caac_outlier_robustness_report_20250602_001852.md)
-  - [方法对比](results/caac_comparison_report_20250602_001852.md)
-  - [案例研究](results/caac_case_studies_20250602_001852.md)
-
+  - [快速鲁棒性测试](_results/quick_robustness_report_20250602_000819.md)
+  - [标准鲁棒性测试](_results/standard_robustness_report_20250602_002542.md)
 
 - **🧠 API 文档**
   - [CAAC模型](api/models.md)
