@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.Python
+
+# Results and experiments
+results/
+*.csv
+*.png
+*.jpg
+*.jpeg
+
+# Development
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
