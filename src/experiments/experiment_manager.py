@@ -46,13 +46,13 @@ class ExperimentManager:
         # Default experiment configurations
         self.default_configs = {
             'quick_robustness': {
-                'noise_levels': [0.0, 0.05, 0.10, 0.15, 0.20],
+                'noise_levels': [0.0, 0.10, 0.20],
                 'representation_dim': 128,
                 'epochs': 100,
                 'datasets': ['iris', 'wine', 'breast_cancer', 'optical_digits']
             },
             'standard_robustness': {
-                'noise_levels': [0.0, 0.05, 0.10, 0.15, 0.20],
+                'noise_levels': [0.0, 0.10, 0.20],
                 'representation_dim': 128,
                 'epochs': 150,
                 'datasets': ['iris', 'wine', 'breast_cancer', 'optical_digits', 
@@ -269,7 +269,9 @@ def main():
     
     if args.experiment in experiment_map:
         result_dir = experiment_map[args.experiment]()
-        print(f"\n✅ Experiment completed! Results saved to: {result_dir}")
+        # Ensure result_dir starts with ./ for clickable paths
+        display_result_dir = result_dir if result_dir.startswith('./') else f"./{result_dir}"
+        print(f"\n✅ Experiment completed! Results saved to: {display_result_dir}")
         
         # Create summary
         summary = manager.create_experiment_summary(result_dir)

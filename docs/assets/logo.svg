@@ -8,6 +8,6 @@
   </defs>
   <circle cx="100" cy="100" r="90" fill="url(#grad1)" stroke="#ffffff" stroke-width="2"/>
   <text x="100" y="85" font-family="Arial, sans-serif" font-size="40" font-weight="bold" text-anchor="middle" fill="#ffffff">CAAC</text>
-  <text x="100" y="115" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#ffffff">共享潜在因果表征向量</text>
-  <text x="100" y="135" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#ffffff"> 行动推断OvR多分类器</text>
+  <text x="100" y="115" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#ffffff">柯西推断行动分类器</text>
+  <!-- <text x="100" y="135" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#ffffff"> 行动推断OvR多分类器</text> -->
 </svg>

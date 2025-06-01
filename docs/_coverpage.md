@@ -1,14 +1,22 @@
 <!-- _coverpage.md -->
 
-![logo](../assets/logo.png)
+![logo](assets/logo.svg)
 
-# CAAC <small>1.0</small>
+<!-- # CAAC <small>v1.2</small> -->
 
-> 共享潜在柯西向量的 One-vs-Rest (OvR) 多分类器
+> 🧠 基于共享潜在柯西向量的推断行动 One-vs-Rest 多分类器
 
-- 结合 OvR 策略的效率和柯西分布的不确定性建模能力
-- 通过共享潜在柯西向量隐式捕捉类别间的相关性
-- 提供精确的不确定性量化和高度可解释性
+**🎯 新一代机器学习分类器**
 
-[GitHub](https://github.com/1587causalai/caac)
-[开始使用](#共享潜在柯西向量的-one-vs-rest-ovr-多分类器)
+- ✨ **厚尾鲁棒性** - 柯西分布对异常值的天然抵抗力
+- 🔗 **智能关联** - 共享潜在向量捕捉类别间相关性  
+- 🚀 **高效扩展** - OvR策略支持大规模分类任务
+- 📊 **精确量化** - 显式建模决策不确定性
+
+
+[🚀 立即开始](tutorials/quickstart.md)
+[📚 查看文档](theory/motivation.md)
+[💻 GitHub仓库](https://github.com/1587causalai/caac)
+
+<!-- 背景色: 浅蓝色 -->
+![color](#blue)  

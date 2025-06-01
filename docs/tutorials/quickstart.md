@@ -1,220 +1,223 @@
-# 使用指南
+# 🚀 5分钟快速开始
 
-## 安装
+欢迎使用 CAAC！本指南将帮助您在5分钟内完成环境搭建并运行第一个实验。
 
-要使用共享潜在柯西向量的OvR多分类器，首先需要安装必要的依赖：
+## ⚡ 一键快速体验
 
-```bash
-pip install torch numpy pandas scikit-learn matplotlib seaborn
-```
-
-然后，克隆项目仓库：
+如果您只想快速体验项目功能，可以直接运行：
 
 ```bash
+# 克隆项目
 git clone https://github.com/1587causalai/caac.git
-cd caac
+cd caac_project
+
+# 激活环境并运行快速测试
+conda activate base
+python run_experiments.py --quick
 ```
 
-## 快速开始
+> 🎯 **预期时间**: 3-5分钟  
+> 🔍 **测试内容**: 4个小数据集上的鲁棒性测试
 
-以下是一个简单的示例，展示如何使用共享潜在柯西向量的OvR多分类器：
+## 📋 详细安装步骤
 
-```python
-import numpy as np
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-
-# 导入模型
-from src.models.caac_ovr_model import CAACOvRModel
-
-# 加载数据集
-X, y = load_iris(return_X_y=True)
-
-# 数据预处理
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# 数据分割
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=42
-)
-
-# 创建模型
-model = CAACOvRModel(
-    input_dim=X.shape[1],
-    representation_dim=64,
-    latent_dim=32,
-    n_classes=3,
-    feature_hidden_dims=[128, 64],
-    abduction_hidden_dims=[64, 32],
-    threshold=0.0,
-    lr=0.001,
-    batch_size=32,
-    epochs=100,
-    early_stopping_patience=10
-)
-
-# 训练模型
-model.fit(X_train, y_train, verbose=1)
-
-# 预测
-y_pred = model.predict(X_test)
-y_pred_proba = model.predict_proba(X_test)
-
-# 评估
-from sklearn.metrics import accuracy_score, classification_report
-print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
-print(classification_report(y_test, y_pred))
-```
-
-## 运行实验
-
-要复现论文中的实验结果，可以使用提供的实验脚本：
+### 第1步: 环境准备
 
 ```bash
-cd src/experiments
-python run_experiments.py --dataset iris
-python run_experiments.py --dataset wine
-python run_experiments.py --dataset breast_cancer
-python run_experiments.py --dataset digits
+# 确保使用推荐的conda环境
+conda activate base
+
+# 检查Python版本 (需要3.7+)
+python --version
 ```
 
-实验结果将保存在`results`目录中。
+### 第2步: 安装依赖
 
-## 可视化不确定性
+```bash
+# 安装核心依赖
+pip install torch scikit-learn matplotlib pandas numpy seaborn
 
-共享潜在柯西向量的OvR多分类器的一个关键特性是能够量化决策的不确定性。以下是如何可视化模型的不确定性：
+# 验证安装
+python -c "import torch, sklearn, matplotlib; print('依赖安装成功!')"
+```
+
+### 第3步: 验证安装
+
+```bash
+# 查看所有可用实验
+python run_experiments.py
+
+# 应该看到类似这样的输出：
+```
+
+```
+🧠 CAAC Project - Shared Latent Cauchy Vector OvR Classifier
+============================================================
+🔬 Available Experiments:
+
+  🚀 --quick        Quick robustness test (3-5 minutes)
+  🔬 --standard     Standard robustness test (15-25 minutes)  
+  📊 --comparison   Basic method comparison
+  🎯 --outlier      Outlier robustness test
+  🎮 --interactive  Interactive experiment designer
+```
+
+## 🎯 运行第一个实验
+
+### 快速鲁棒性测试 (推荐)
+
+```bash
+python run_experiments.py --quick
+```
+
+该命令将：
+- ✅ 在4个经典数据集上测试CAAC算法
+- ✅ 对比5种不同的分类方法
+- ✅ 测试在0%-20%标签噪声下的鲁棒性
+- ✅ 生成详细的可视化报告
+
+**预期输出示例：**
+```
+🚀 Starting Quick Robustness Test...
+📊 Loading datasets...
+🔬 Testing CAAC OvR (Cauchy)...
+📈 Accuracy: 0.9565, F1: 0.9582
+✅ Experiment completed successfully!
+📁 Results saved to: results/
+```
+
+### 交互式实验设计
+
+如果您想自定义实验参数：
+
+```bash
+python run_experiments.py --interactive
+```
+
+系统会引导您：
+1. 选择实验类型
+2. 配置参数（数据集、噪声水平等）
+3. 运行自定义实验
+
+## 📊 查看结果
+
+实验完成后，结果保存在 `results/` 目录：
+
+```
+results/
+├── 📊 caac_outlier_robustness_curves.png      # 鲁棒性曲线图
+├── 📊 caac_outlier_robustness_heatmap.png     # 热力图对比
+├── 📈 caac_outlier_robustness_detailed.csv    # 详细数据
+├── 📝 caac_outlier_robustness_report.md       # 实验报告
+└── 📋 caac_outlier_robustness_summary.csv     # 结果摘要
+```
+
+### 结果解读
+
+**鲁棒性得分**: 越接近1.0表示在噪声环境下性能越稳定
+**基线准确率**: 无噪声情况下的分类准确率  
+**性能衰减**: 在最高噪声水平下的性能下降程度
+
+## 🎮 更多实验类型
+
+### 标准鲁棒性测试 (15-25分钟)
+
+```bash
+python run_experiments.py --standard
+```
+- 覆盖8个数据集，74,000+样本
+- 更全面的性能评估
+- 适合研究和发表
+
+### 方法对比分析 (5-10分钟)
+
+```bash
+python run_experiments.py --comparison
+```
+- 专注于不同方法的性能对比
+- 生成对比图表和统计分析
+- 适合方法选择和评估
+
+### 离群值鲁棒性测试 (10-20分钟)
+
+```bash
+python run_experiments.py --outlier
+```
+- 测试对极端异常值的抵抗能力
+- 模拟真实世界的数据质量问题
+- 适合鲁棒性研究
+
+## 🔧 自定义配置
+
+您可以通过修改配置来自定义实验：
 
 ```python
-from src.experiments.model_evaluator import ModelEvaluator
+from src.experiments.experiment_manager import ExperimentManager
 
-# 创建评估器
-evaluator = ModelEvaluator()
+# 创建实验管理器
+manager = ExperimentManager()
 
-# 可视化不确定性
-uncertainty_fig = evaluator.visualize_uncertainty(
-    model, 
-    X_test, 
-    y_test, 
-    n_samples=5,
-    save_path='uncertainty.png'
-)
+# 自定义配置
+custom_config = {
+    'datasets': ['iris', 'wine'],           # 选择特定数据集
+    'noise_levels': [0.0, 0.1, 0.2],      # 自定义噪声水平
+    'epochs': 50,                           # 调整训练轮数
+    'representation_dim': 64                # 修改表征维度
+}
+
+# 运行自定义实验
+result_dir = manager.run_quick_robustness_test(**custom_config)
 ```
 
-## 模型参数调整
+## 🚨 常见问题解决
 
-以下是一些关键参数的调整建议：
-
-- **representation_dim**：表征维度，通常设置为输入维度的2-4倍
-- **latent_dim**：潜在柯西向量维度，通常设置为类别数量的2-4倍
-- **feature_hidden_dims**：特征网络隐藏层维度，根据数据复杂度调整
-- **abduction_hidden_dims**：推断网络隐藏层维度，根据数据复杂度调整
-- **threshold**：判决阈值，默认为0.0，可以根据需要调整
-- **lr**：学习率，通常设置为0.001，可以根据需要调整
-- **batch_size**：批量大小，通常设置为32，可以根据数据量调整
-- **epochs**：训练轮数，通常设置为100，可以根据需要调整
-- **early_stopping_patience**：早停耐心值，通常设置为10，可以根据需要调整
-
-## 高级用法
-
-### 自定义特征网络
-
-可以自定义特征网络，以适应不同的数据类型：
-
-```python
-import torch.nn as nn
-
-# 自定义特征网络
-class CustomFeatureNetwork(nn.Module):
-    def __init__(self, input_dim, representation_dim):
-        super(CustomFeatureNetwork, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, representation_dim)
-        )
-        
-    def forward(self, x):
-        return self.network(x)
-
-# 使用自定义特征网络
-from src.models.unified_network import UnifiedClassificationNetwork
-
-# 创建统一分类网络
-unified_net = UnifiedClassificationNetwork(
-    input_dim=X.shape[1],
-    representation_dim=64,
-    latent_dim=32,
-    n_classes=3,
-    feature_hidden_dims=[128, 64],
-    abduction_hidden_dims=[64, 32],
-    threshold=0.0
-)
-
-# 替换特征网络
-unified_net.feature_net = CustomFeatureNetwork(X.shape[1], 64)
-
-# 创建模型包装类
-model = CAACOvRModel(
-    input_dim=X.shape[1],
-    representation_dim=64,
-    latent_dim=32,
-    n_classes=3
-)
-
-# 替换模型
-model.model = unified_net
+### Q: 出现导入错误？
+```bash
+# 确保在项目根目录
+cd /path/to/caac_project
+python run_experiments.py --quick
 ```
 
-### 分析类别间相关性
-
-可以通过分析线性变换层的权重矩阵，观察类别间的相关性：
-
-```python
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# 获取线性变换层的权重矩阵
-weight = model.model.linear_transform.weight.data.cpu().numpy()
-
-# 计算类别间的相关性
-correlation = np.corrcoef(weight)
-
-# 可视化类别间的相关性
-plt.figure(figsize=(10, 8))
-sns.heatmap(correlation, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
-plt.title('Class Correlation')
-plt.savefig('class_correlation.png')
+### Q: 依赖包缺失？
+```bash
+# 重新安装依赖
+conda activate base
+pip install torch scikit-learn matplotlib pandas numpy seaborn
 ```
 
-### 分析不确定性与性能的关系
-
-可以分析模型的不确定性（尺度参数）与性能的关系：
-
-```python
-# 获取预测结果和不确定性参数
-model.model.eval()
-with torch.no_grad():
-    class_probs, loc, scale, _, _ = model.model(torch.FloatTensor(X_test).to(model.device))
-
-# 转换为NumPy数组
-class_probs = class_probs.cpu().numpy()
-loc = loc.cpu().numpy()
-scale = scale.cpu().numpy()
-
-# 获取预测类别
-y_pred = np.argmax(class_probs, axis=1)
-
-# 计算正确分类和错误分类的平均尺度参数
-correct_mask = (y_pred == y_test)
-correct_scale = scale[correct_mask].mean()
-incorrect_scale = scale[~correct_mask].mean()
-
-print(f"Correct classification average scale: {correct_scale:.4f}")
-print(f"Incorrect classification average scale: {incorrect_scale:.4f}")
-print(f"Ratio: {incorrect_scale / correct_scale:.4f}")
+### Q: 内存不足？
+```bash
+# 运行小规模测试
+python run_experiments.py --quick
+# 或减少数据集数量（使用交互式模式）
+python run_experiments.py --interactive
 ```
+
+### Q: 训练时间太长？
+```bash
+# 使用快速配置
+python run_experiments.py --quick
+# 或在交互式模式中减少epochs
+```
+
+## 🎯 下一步建议
+
+完成快速开始后，建议您：
+
+1. **📖 深入理解**: 阅读 [理论基础](../theory/motivation.md) 了解算法原理
+2. **🛠️ 探索API**: 查看 [API文档](../api/caac_ovr_model.md) 了解详细接口
+3. **📊 分析结果**: 学习 [结果解读](result_interpretation.md) 深入分析
+4. **🔬 自定义实验**: 使用 [实验配置](experiment_config.md) 设计专属实验
+
+## 💡 使用技巧
+
+- 🚀 **新手推荐**: 从 `--quick` 开始，验证环境和功能
+- 🔬 **研究使用**: 运行 `--standard` 获取完整的性能数据
+- 🎮 **高级用户**: 使用 `--interactive` 进行精确的实验控制
+- 📊 **结果分析**: 结合多种实验类型获得全面认知
+
+---
+
+🎉 **恭喜！** 您已成功完成CAAC项目的快速入门。现在可以开始探索这个强大的多分类器了！
+
+> 💬 **需要帮助？** 查看 [常见问题](faq.md) 或在GitHub Issues中提问。

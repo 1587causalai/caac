@@ -1,39 +1,196 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>CAAC - 共享潜在柯西向量的 OvR 多分类器</title>
+  <title>CAAC - 基于共享潜在柯西向量的 OvR 多分类器</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="一种新颖且高度可解释的多分类器架构，结合 OvR 策略的效率和柯西分布的不确定性建模能力。">
+  <meta name="description" content="一种新颖且高度可解释的多分类器架构，结合 OvR 策略的效率和柯西分布的不确定性建模能力。在74,000+样本测试中获得最佳鲁棒性表现。">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <meta name="keywords" content="机器学习,多分类器,柯西分布,鲁棒性,不确定性量化,深度学习">
+  <link rel="icon" href="assets/favicon.ico">
+  
+  <!-- Docsify主题 -->
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  
+  <!-- KaTeX CSS - 移到head部分以确保优先加载 -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css" />
+  
+  <!-- 自定义样式 -->
+  <style>
+    :root {
+      --base-color: #2c3e50;
+      --theme-color: #3498db;
+      --sidebar-width: 300px;
+    }
+    
+    .cover.show {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .cover h1 {
+      color: white;
+      font-size: 3rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .cover blockquote {
+      color: rgba(255,255,255,0.9);
+      font-size: 1.2rem;
+    }
+    
+    .cover-main > p:last-child a {
+      background-color: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.8);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .cover-main > p:last-child a:hover {
+      background-color: white;
+      color: var(--base-color);
+    }
+    
+    .sidebar {
+      background-color: #f8f9fa;
+      border-right: 1px solid #e9ecef;
+    }
+    
+    .sidebar > h1 {
+      color: var(--base-color);
+      font-weight: bold;
+    }
+    
+    .app-nav {
+      background-color: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+    }
+    
+    .markdown-section h1,
+    .markdown-section h2,
+    .markdown-section h3 {
+      color: var(--base-color);
+    }
+    
+    .markdown-section {
+      padding: 30px 30px 40px;
+    }
+    
+    /* 代码块样式 */
+    .markdown-section pre {
+      background-color: #2d3748;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    
+    /* 表格样式 */
+    .markdown-section table {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* 提示框样式 */
+    .markdown-section blockquote {
+      border-left: 4px solid var(--theme-color);
+      background: rgba(52, 152, 219, 0.1);
+      padding: 1rem 1.5rem;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    /* 返回顶部按钮 */
+    .back-to-top {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: var(--theme-color);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+      font-size: 20px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">载入中...</div>
+  
   <script>
     window.$docsify = {
       name: 'CAAC',
       repo: 'https://github.com/1587causalai/caac',
+      homepage: 'README.md',
+      
+      // 侧边栏
       loadSidebar: true,
       subMaxLevel: 3,
+      
+      // 封面页
       coverpage: true,
+      onlyCover: false,
+      
+      // 搜索功能
+      search: 'auto',
+      
+      // 其他配置
       auto2top: true,
-      search: {
-        maxAge: 86400000,
-        paths: 'auto',
-        placeholder: '搜索',
-        noData: '未找到结果',
-        depth: 6
+      maxLevel: 4,
+      el: '#app',
+      
+      // 数学公式配置 - 使用简化配置
+      latex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
       }
     }
   </script>
-  <!-- Docsify v4 -->
+  
+  <!-- Docsify核心 -->
   <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  
+  <!-- 搜索插件 -->
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-python.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-bash.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-json.min.js"></script>
+  
+  <!-- KaTeX数学公式支持 -->
+  <script src="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  
+  <!-- docsify-latex插件 - 使用与参考配置相同的版本 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-latex@0"></script>
+  
+  <!-- 代码高亮 - 只保留基本语言 -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  
+  <!-- 自定义功能脚本 -->
+  <script>
+    // 返回顶部功能
+    window.addEventListener('load', function() {
+      var backToTop = document.createElement('div');
+      backToTop.innerHTML = '↑';
+      backToTop.className = 'back-to-top';
+      document.body.appendChild(backToTop);
+      
+      // 滚动显示/隐藏返回顶部按钮
+      window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+          backToTop.style.opacity = '1';
+        } else {
+          backToTop.style.opacity = '0';
+        }
+      });
+      
+      // 点击返回顶部
+      backToTop.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  </script>
 </body>
 </html>

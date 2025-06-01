@@ -46,9 +46,11 @@ def print_experiment_options():
     print()
     print("  🚀 --quick        Quick robustness test (3-5 minutes)")
     print("                    Tests on 4 small datasets with label noise")
+    print("                    包含完整的可视化图表和详细报告")
     print()
     print("  🔬 --standard     Standard robustness test (15-25 minutes)")
     print("                    Tests on 8 datasets with comprehensive analysis")
+    print("                    生成高质量的鲁棒性曲线图、热力图和分析报告")
     print()
     print("  📊 --comparison   Basic method comparison")
     print("                    Compare CAAC with traditional methods")
@@ -188,8 +190,10 @@ Examples:
     
     try:
         if args.quick:
+            # 使用新的实验管理器，包含完整的文档生成功能
             result_dir = manager.run_quick_robustness_test()
         elif args.standard:
+            # 使用新的实验管理器，包含完整的文档生成功能
             result_dir = manager.run_standard_robustness_test()
         elif args.comparison:
             result_dir = manager.run_basic_comparison()
@@ -215,19 +219,23 @@ Examples:
         print(f"\n❌ Error running experiment: {e}")
         print("💡 Make sure you have activated the 'base' conda environment")
         print("💡 Check that all dependencies are installed")
+        import traceback
+        traceback.print_exc()
         return
     
     # Show results
     if result_dir is not None:
         print(f"\n✅ Experiment completed successfully!")
-        print(f"📁 Results saved to: {result_dir}")
+        # Ensure result_dir starts with ./ for clickable paths
+        display_result_dir = result_dir if result_dir.startswith('./') else f"./{result_dir}"
+        print(f"📁 Results saved to: {display_result_dir}")
         
-        # Create and show summary only if result_dir is a valid path string
+        # Create and show summary for all experiments
         if isinstance(result_dir, str):
             try:
                 summary = manager.create_experiment_summary(result_dir)
                 if 'files' in summary:
-                    print(f"📋 Generated {len(summary['files'])} result files:")
+                    print(f"📊 Generated {len(summary['files'])} result files:")
                     for file_info in summary['files'][:5]:  # Show first 5 files
                         print(f"   - {file_info['name']}")
                     if len(summary['files']) > 5:
@@ -236,11 +244,9 @@ Examples:
                 print(f"📋 Results saved, but could not create summary: {e}")
             
             print(f"\n🔍 View results:")
-            print(f"   📊 Open visualization files (.png) in {result_dir}")
-            print(f"   📈 Check experiment_results.json for detailed metrics")
-            print(f"   📝 Review training_history.json for training progress")
-        else:
-            print(f"📋 Experiment completed with return value: {type(result_dir)}")
+            print(f"   📊 Open visualization files (.png) in {display_result_dir}")
+            print(f"   📈 Check detailed reports (.md) for analysis")
+            print(f"   📝 Review CSV files for raw data")
     else:
         print("\n❌ Experiment did not complete successfully")
 

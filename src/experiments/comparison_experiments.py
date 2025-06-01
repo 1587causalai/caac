@@ -50,6 +50,9 @@ class MethodComparisonRunner:
         self.results_dir = Path(results_dir)
         self.results_dir.mkdir(exist_ok=True)
         
+        # Store relative path for display purposes
+        self.results_dir_display = results_dir if "/" in results_dir else f"./{results_dir}"
+        
         # Set random seed for reproducibility
         np.random.seed(42)
     
@@ -307,11 +310,12 @@ class MethodComparisonRunner:
         self._generate_detailed_report(results_df, summary, timestamp)
         
         print("\n✅ Method comparison experiments completed!")
-        print("📁 Results files:")
-        print(f"  • {self.results_dir}/methods_comparison_english_{timestamp}.png - Performance comparison charts")
-        print(f"  • {self.results_dir}/methods_comparison_detailed_{timestamp}.csv - Detailed results data")
-        print(f"  • {self.results_dir}/methods_comparison_summary_{timestamp}.csv - Summary statistics")
-        print(f"  • {self.results_dir}/caac_methods_comparison_report_{timestamp}.md - Detailed report")
+        print(f"📁 Results saved to: {self.results_dir_display}")
+        print("📊 Generated files:")
+        print(f"   - {self.results_dir_display}/methods_comparison_english_{timestamp}.png")
+        print(f"   - {self.results_dir_display}/methods_comparison_detailed_{timestamp}.csv") 
+        print(f"   - {self.results_dir_display}/methods_comparison_summary_{timestamp}.csv")
+        print(f"   - {self.results_dir_display}/caac_methods_comparison_report_{timestamp}.md")
         
         return str(self.results_dir)
     
@@ -379,7 +383,7 @@ class MethodComparisonRunner:
         plot_file = self.results_dir / f'methods_comparison_english_{timestamp}.png'
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         plt.close()
-        print(f"📈 English comparison chart saved: {plot_file.name}")
+        print(f"📈 English comparison chart saved: {self.results_dir_display}/{plot_file.name}")
     
     def _create_summary_table(self, results_df, timestamp):
         """Create summary comparison table."""
