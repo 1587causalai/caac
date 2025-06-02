@@ -1,200 +1,21 @@
-name: 📚 Deploy Documentation
+# 🚀 超简单的GitHub Pages部署
+# 其实你可以完全不要这个文件，直接在仓库设置中选择从docs文件夹部署更简单！
 
+name: Deploy Docs
 on:
   push:
-    branches: [ main, master ]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'docs/**'
-
-# 添加权限配置
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# 并发控制，确保只有一个部署在进行
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+    branches: [ main ]
+    paths: [ 'docs/**' ]
 
 jobs:
-  deploy-docs:
+  deploy:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: 🛎️ Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: 📝 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-    
-    - name: 📦 Install dependencies
-      run: |
-        npm install -g docsify-cli
-        
-    - name: 🔧 Validate documentation
-      run: |
-        # 检查必要的文档文件
-        echo "🔍 Checking documentation structure..."
-        test -f docs/README.md || (echo "❌ Missing docs/README.md" && exit 1)
-        test -f docs/_sidebar.md || (echo "❌ Missing docs/_sidebar.md" && exit 1)
-        test -f docs/_coverpage.md || (echo "❌ Missing docs/_coverpage.md" && exit 1)
-        test -f docs/index.html || (echo "❌ Missing docs/index.html" && exit 1)
-        echo "✅ Documentation structure is valid"
-        
-        # 检查链接有效性
-        echo "🔗 Checking internal links..."
-        find docs -name "*.md" -exec grep -l "\[.*\](.*\.md)" {} \; | while read file; do
-          echo "Checking links in $file"
-          grep -o "\[.*\](.*\.md)" "$file" | sed 's/.*](\([^)]*\)).*/\1/' | while read link; do
-            if [[ "$link" == http* ]]; then
-              continue
-            fi
-            full_path="docs/$link"
-            if [[ ! -f "$full_path" ]]; then
-              echo "❌ Broken link: $link in $file"
-              # Don't exit on broken links, just warn
-            fi
-          done
-        done
-        echo "✅ Link validation completed"
-    
-    - name: 🏗️ Build documentation
-      run: |
-        echo "🔨 Building documentation site..."
-        cd docs
-        
-        # 创建临时构建目录
-        mkdir -p .temp
-        
-        # 复制所有文档文件
-        cp -r * .temp/ 2>/dev/null || true
-        
-        echo "✅ Documentation build completed"
-    
-    - name: 📤 Setup Pages
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/configure-pages@v4
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
       
-    - name: 📦 Upload Pages artifact
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: ./docs
-        
-    - name: 🚀 Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      id: deployment
-      uses: actions/deploy-pages@v4
-        
-    - name: 📊 Generate deployment report
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      run: |
-        echo "📋 Deployment Report" >> $GITHUB_STEP_SUMMARY
-        echo "==================" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Status**: Successfully deployed" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 **URL**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
-        echo "📂 **Source**: \`docs/\` directory" >> $GITHUB_STEP_SUMMARY
-        echo "🌟 **Framework**: Docsify" >> $GITHUB_STEP_SUMMARY
-        echo "📅 **Deployed**: $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📁 Documentation Structure" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        find docs -type f -name "*.md" | head -20 | sort >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        
-    - name: 💬 Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          
-          // 统计文档变更
-          const { data: files } = await github.rest.pulls.listFiles({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            pull_number: context.issue.number
-          });
-          
-          const docFiles = files.filter(f => f.filename.startsWith('docs/'));
-          const addedLines = docFiles.reduce((sum, f) => sum + f.additions, 0);
-          const deletedLines = docFiles.reduce((sum, f) => sum + f.deletions, 0);
-          
-          const comment = `## 📚 Documentation Preview
-          
-          ### 📊 Changes Summary
-          - **Files changed**: ${docFiles.length}
-          - **Lines added**: +${addedLines}
-          - **Lines removed**: -${deletedLines}
-          
-          ### 🔍 Changed Files
-          ${docFiles.map(f => `- \`${f.filename}\` (+${f.additions} -${f.deletions})`).join('\n')}
-          
-          ### 🚀 Preview
-          Once this PR is merged, the documentation will be available at:
-          https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-          
-          ---
-          *This comment was automatically generated by the documentation workflow.*`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
-
-  # 可选：生成并上传文档统计
-  docs-analytics:
-    runs-on: ubuntu-latest
-    needs: deploy-docs
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    
-    steps:
-    - name: 🛎️ Checkout
-      uses: actions/checkout@v4
-      
-    - name: 📊 Generate documentation analytics
-      run: |
-        echo "📈 Documentation Analytics" > docs-stats.md
-        echo "=========================" >> docs-stats.md
-        echo "" >> docs-stats.md
-        
-        # 文档数量统计
-        total_docs=$(find docs -name "*.md" | wc -l)
-        echo "📄 **Total Documents**: $total_docs" >> docs-stats.md
-        
-        # 文档大小统计
-        total_size=$(find docs -name "*.md" -exec wc -c {} + | tail -1 | awk '{print $1}')
-        echo "📏 **Total Size**: $(($total_size / 1024)) KB" >> docs-stats.md
-        
-        # 行数统计
-        total_lines=$(find docs -name "*.md" -exec wc -l {} + | tail -1 | awk '{print $1}')
-        echo "📝 **Total Lines**: $total_lines" >> docs-stats.md
-        
-        echo "" >> docs-stats.md
-        echo "### 📁 Directory Structure" >> docs-stats.md
-        echo "\`\`\`" >> docs-stats.md
-        tree docs -I "_*|node_modules|.git" >> docs-stats.md 2>/dev/null || find docs -type d | sort >> docs-stats.md
-        echo "\`\`\`" >> docs-stats.md
-        
-        # 显示统计信息
-        cat docs-stats.md
-        
-    - name: 📤 Upload analytics
-      uses: actions/upload-artifact@v4
-      with:
-        name: documentation-analytics
-        path: docs-stats.md
-        retention-days: 30 
+      - name: 🚀 Deploy to GitHub Pages  
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs 
