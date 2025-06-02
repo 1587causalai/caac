@@ -117,9 +117,6 @@ caac_project/
 
 - **📖 [快速开始](tutorials/quickstart.md)** - 5分钟上手指南
 - **🔬 [理论基础](theory/motivation.md)** - 数学原理和动机
-- **🛠️ [API文档](api/caac_ovr_model.md)** - 详细的API参考
-- **📊 [实验结果](experiments/benchmark_results.md)** - 基准测试报告
-- **🎯 [用户指南](tutorials/user_guide.md)** - 完整的使用说明
 
 ## 🎯 适用场景
 
