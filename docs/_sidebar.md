@@ -16,6 +16,7 @@
   - [评估指标说明](_results/robustness_evaluation_methodology.md)
   <!-- - [快速鲁棒性测试](_results/quick_robustness_report_20250602_000819.md) -->
   - [标准鲁棒性测试](_results/standard_robustness_report_20250602_112933.md)
+  - [推断行动分类框架方法对比](_results/caac_methods_comparison_report_20250602_130404.md)
 
 - **🧠 API 文档**
   - [CAAC模型](api/models.md)

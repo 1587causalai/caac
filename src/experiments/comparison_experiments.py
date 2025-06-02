@@ -99,47 +99,74 @@ class MethodComparisonRunner:
         return datasets
     
     def create_comparison_methods(self, representation_dim=64, epochs=100):
-        """Create all methods for comparison."""
-        # Unified network architecture parameters
+        """Create all methods for comparison - 与最新鲁棒性实验保持一致的5种核心神经网络方法."""
+        # 统一网络架构参数 - 与鲁棒性实验保持一致
         common_params = {
             'representation_dim': representation_dim,
-            'latent_dim': None,  # Defaults to representation_dim
-            'feature_hidden_dims': [64],
-            'abduction_hidden_dims': [128, 64],
             'lr': 0.001,
             'batch_size': 32,
             'epochs': epochs,
-            'device': None,
-            'early_stopping_patience': 10,
-            'early_stopping_min_delta': 0.0001
+            'early_stopping_patience': 10
         }
         
         methods = {
-            # Core unified architecture methods
+            # 核心推断行动框架方法 - 基础版本
             'CAAC_Cauchy': {
-                'name': 'CAAC OvR (Cauchy)',
+                'name': 'CAAC (Cauchy)',
                 'type': 'unified',
                 'model_class': CAACOvRModel,
                 'params': {**common_params, 'learnable_thresholds': False}
-            },
-            'CAAC_Cauchy_Learnable': {
-                'name': 'CAAC OvR (Cauchy, Learnable)',
-                'type': 'unified',
-                'model_class': CAACOvRModel,
-                'params': {**common_params, 'learnable_thresholds': True}
             },
             'CAAC_Gaussian': {
-                'name': 'CAAC OvR (Gaussian)',
+                'name': 'CAAC (Gaussian)', 
                 'type': 'unified',
                 'model_class': CAACOvRGaussianModel,
                 'params': {**common_params, 'learnable_thresholds': False}
             },
+            
+            # 推断行动框架 - 可学习阈值变体
+            'CAAC_Cauchy_Learnable': {
+                'name': 'CAAC (Cauchy, Learnable)',
+                'type': 'unified',
+                'model_class': CAACOvRModel,
+                'params': {**common_params, 'learnable_thresholds': True}
+            },
             'CAAC_Gaussian_Learnable': {
-                'name': 'CAAC OvR (Gaussian, Learnable)',
+                'name': 'CAAC (Gaussian, Learnable)',
                 'type': 'unified',
                 'model_class': CAACOvRGaussianModel,
                 'params': {**common_params, 'learnable_thresholds': True}
             },
+            
+            # 推断行动框架 - 唯一性约束变体
+            'CAAC_Cauchy_Unique': {
+                'name': 'CAAC Cauchy (Uniqueness)',
+                'type': 'unified',
+                'model_class': CAACOvRModel,
+                'params': {**common_params, 'learnable_thresholds': False, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+            },
+            'CAAC_Gaussian_Unique': {
+                'name': 'CAAC Gaussian (Uniqueness)',
+                'type': 'unified',
+                'model_class': CAACOvRGaussianModel,
+                'params': {**common_params, 'learnable_thresholds': False, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+            },
+            
+            # 推断行动框架 - 可学习阈值+唯一性约束组合
+            'CAAC_Cauchy_Learnable_Unique': {
+                'name': 'CAAC Cauchy (Learnable+Uniqueness)',
+                'type': 'unified',
+                'model_class': CAACOvRModel,
+                'params': {**common_params, 'learnable_thresholds': True, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+            },
+            'CAAC_Gaussian_Learnable_Unique': {
+                'name': 'CAAC Gaussian (Learnable+Uniqueness)',
+                'type': 'unified',
+                'model_class': CAACOvRGaussianModel,
+                'params': {**common_params, 'learnable_thresholds': True, 'uniqueness_constraint': True, 'uniqueness_samples': 3, 'uniqueness_weight': 0.05}
+            },
+            
+            # 标准深度学习方法
             'MLP_Softmax': {
                 'name': 'MLP (Softmax)',
                 'type': 'unified',
@@ -238,8 +265,26 @@ class MethodComparisonRunner:
     
     def run_comparison_experiments(self, representation_dim=64, epochs=100, datasets=None):
         """Run comprehensive method comparison experiments."""
-        print("🔬 Starting Classification Method Comparison Experiments")
+        print("🔬 分类方法对比实验 - 完整推断行动框架评估")
         print("=" * 60)
+        print("📋 测试方法（11种统一架构方法 + 5种经典方法）：")
+        print("   🧠 推断行动框架基础版本：")
+        print("      • CAAC (Cauchy) - 柯西分布 + 固定阈值")
+        print("      • CAAC (Gaussian) - 高斯分布 + 固定阈值")
+        print("   ⚙️  推断行动框架可学习阈值版本：")
+        print("      • CAAC (Cauchy, Learnable) - 柯西分布 + 可学习阈值")
+        print("      • CAAC (Gaussian, Learnable) - 高斯分布 + 可学习阈值")
+        print("   🔒 推断行动框架唯一性约束版本：")
+        print("      • CAAC Cauchy (Uniqueness) - 柯西分布 + 唯一性约束")
+        print("      • CAAC Gaussian (Uniqueness) - 高斯分布 + 唯一性约束")
+        print("   🔧 推断行动框架组合版本：")
+        print("      • CAAC Cauchy (Learnable+Uniqueness) - 柯西+可学习阈值+唯一性")
+        print("      • CAAC Gaussian (Learnable+Uniqueness) - 高斯+可学习阈值+唯一性")
+        print("   📊 标准深度学习对照：")
+        print("      • MLP (Softmax) - 标准Softmax分类器")
+        print("      • MLP (OvR Cross Entropy) - 一对多交叉熵")
+        print("      • MLP (Crammer & Singer Hinge) - 铰链损失")
+        print()
         
         # Load datasets
         all_datasets = self.load_datasets()
@@ -320,7 +365,7 @@ class MethodComparisonRunner:
         return str(self.results_dir)
     
     def _create_comparison_plots(self, results_df, timestamp):
-        """Create comparison visualization charts."""
+        """Create comparison visualization charts with English labels."""
         plt.style.use('default')
         
         # Set figure size and layout
@@ -406,85 +451,107 @@ class MethodComparisonRunner:
         return summary
     
     def _generate_detailed_report(self, results_df, summary, timestamp):
-        """Generate detailed experiment comparison report."""
-        print("\n📄 Generating detailed experiment report")
+        """生成详细的实验比较报告（中文版）。"""
+        print("\n📄 生成详细实验报告")
         print("=" * 50)
         
         report_file = self.results_dir / f"caac_methods_comparison_report_{timestamp}.md"
         
         with open(report_file, 'w', encoding='utf-8') as f:
-            f.write(f"""# CAAC Classification Method Comparison Report
+            f.write(f"""# CAAC分类方法对比实验报告
 
-**Report Generated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**报告生成时间:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
-## Experiment Overview
+## 实验概述
 
-This report presents a comprehensive performance comparison between **CAAC OvR classifiers** and various traditional classification methods. The experiment uses unified network architecture to ensure fair comparison, varying only in loss functions and regularization strategies.
+本报告展示了**CAAC OvR分类器**与多种传统分类方法的全面性能比较。实验采用统一的网络架构，仅在损失函数和正则化策略上有所不同，确保了公平的比较环境。
 
-### Research Question
-**Does using Cauchy distribution scale parameters improve classification performance?**
+### 核心研究问题
+**推断行动框架使用柯西分布的尺度参数是否优于高斯分布和标准深度学习方法？**
 
-### Tested Method Architecture
-All neural network methods use the same unified architecture:
-- **FeatureNet**: Feature extraction network (input → 64-dim **deterministic feature representation**)
-- **AbductionNet**: Abductive reasoning network (64-dim → 64-dim **causal representation random variable** parameters)  
-- **ActionNet**: Action decision network (64-dim → **number of classes** scores)
+### 推断行动框架架构
+我们的推断行动框架（CAAC方法）采用统一的三阶段架构：
+- **FeatureNet**: 特征提取网络 (输入维度 → 64维**确定性特征表征**)
+- **AbductionNet**: 溯因推理网络 (64维 → 64维**因果表征随机变量**参数)  
+- **ActionNet**: 行动决策网络 (64维 → **类别数量**的得分)
 
-**Important Concept Alignment**: 
-- Feature representation dimension = Causal representation dimension (d_repr = d_latent = 64)
-- Feature representation is deterministic, causal representation is random variable (location + scale parameters)
-- Score dimension equals number of classes
+**推断行动框架核心思想**: 
+- 特征表征是确定性数值，因果表征是随机变量（位置+尺度参数）
+- 柯西分布vs高斯分布：不同的尺度参数建模策略
+- 通过概率推理实现更鲁棒的分类决策
+- 标准方法仅使用位置参数，忽略了不确定性建模
 
-### Experimental Methods
+### 实验方法
 
-#### Unified Architecture Methods (Same network structure, different loss functions)
-1. **CAAC OvR (Cauchy distribution)** - Our proposed method using Cauchy distribution scale parameters
-2. **CAAC OvR (Gaussian distribution)** - CAAC framework using Gaussian distribution instead of Cauchy
-3. **MLP (Softmax)** - Standard MLP using Softmax loss function, only using location parameters
-4. **MLP (OvR Cross Entropy)** - Standard MLP using OvR strategy cross-entropy loss, only using location parameters
+#### 统一架构方法 (11种神经网络方法)
 
-#### Classical Machine Learning Baseline Methods
-5. **Softmax Regression** - Multinomial logistic regression
-6. **OvR Logistic** - One-vs-rest logistic regression
-7. **SVM-RBF** - Radial basis function support vector machine
-8. **Random Forest** - Random forest ensemble method
-9. **MLP-Sklearn** - Scikit-learn multilayer perceptron
+**推断行动框架基础版本 (2种方法):**
+1. **CAAC (Cauchy)** - 推断行动框架，柯西分布建模 + 固定阈值
+2. **CAAC (Gaussian)** - 推断行动框架，高斯分布建模 + 固定阈值
 
-### Test Datasets
-- **Iris**: 3 classes, 4 features, 150 samples
-- **Wine**: 3 classes, 13 features, 178 samples  
-- **Breast Cancer**: 2 classes, 30 features, 569 samples
-- **Digits**: 10 classes, 64 features, 1797 samples
+**推断行动框架可学习阈值版本 (2种方法):**
+3. **CAAC (Cauchy, Learnable)** - 柯西分布 + 可学习阈值参数
+4. **CAAC (Gaussian, Learnable)** - 高斯分布 + 可学习阈值参数
 
-## Detailed Experimental Results
+**推断行动框架唯一性约束版本 (2种方法):**
+5. **CAAC Cauchy (Uniqueness)** - 柯西分布 + 潜在向量采样唯一性约束
+6. **CAAC Gaussian (Uniqueness)** - 高斯分布 + 潜在向量采样唯一性约束
 
-### Accuracy Comparison
+**推断行动框架组合版本 (2种方法):**
+7. **CAAC Cauchy (Learnable+Uniqueness)** - 柯西分布 + 可学习阈值 + 唯一性约束
+8. **CAAC Gaussian (Learnable+Uniqueness)** - 高斯分布 + 可学习阈值 + 唯一性约束
+
+**标准深度学习对照方法 (3种方法):**
+9. **MLP (Softmax)** - 标准多层感知机，使用Softmax损失函数
+10. **MLP (OvR Cross Entropy)** - 一对多策略的交叉熵损失函数
+11. **MLP (Crammer & Singer Hinge)** - 多类铰链损失函数
+
+**唯一性约束说明:**
+- 通过采样多个潜在向量实例化，应用最大-次大间隔约束增强决策确定性
+- 采样次数：3次，约束权重：0.05（实验发现倾向于降低准确率，主要用作理论对照研究）
+
+#### 经典机器学习基准方法 (对照组)
+6. **Softmax Regression** - 多项式logistic回归
+7. **OvR Logistic** - 一对其余逻辑回归
+8. **SVM-RBF** - 径向基函数支持向量机
+9. **Random Forest** - 随机森林集成方法
+10. **MLP-Sklearn** - Scikit-learn多层感知机
+
+### 测试数据集
+- **Iris鸢尾花数据集**: 3类, 4特征, 150样本
+- **Wine红酒数据集**: 3类, 13特征, 178样本  
+- **Breast Cancer乳腺癌数据集**: 2类, 30特征, 569样本
+- **Digits手写数字数据集**: 10类, 64特征, 1797样本
+
+## 详细实验结果
+
+### 准确率对比
 
 """)
             
-            # Create accuracy comparison table
+            # 创建准确率对比表
             pivot_acc = results_df.pivot(index='Dataset', columns='Method', values='Accuracy')
             f.write(pivot_acc.round(4).to_markdown())
-            f.write("\n\n### F1-Score Comparison (Macro Average)\n\n")
+            f.write("\n\n### F1分数对比 (Macro Average)\n\n")
             
-            # Create F1-score comparison table
+            # 创建F1分数对比表
             pivot_f1 = results_df.pivot(index='Dataset', columns='Method', values='F1_Macro')
             f.write(pivot_f1.round(4).to_markdown())
-            f.write("\n\n### Training Time Comparison (seconds)\n\n")
+            f.write("\n\n### 训练时间对比 (秒)\n\n")
             
-            # Create training time comparison table
+            # 创建训练时间对比表
             pivot_time = results_df.pivot(index='Dataset', columns='Method', values='Training_Time')
             f.write(pivot_time.round(3).to_markdown())
             f.write("\n\n")
             
-            # Method performance statistics
-            f.write("""## Method Performance Statistics
+            # 方法性能统计
+            f.write("""## 方法性能统计
 
-### Average Performance Summary
+### 平均性能汇总
 
 """)
             
-            # Calculate average performance
+            # 计算平均性能
             avg_performance = results_df.groupby('Method').agg({
                 'Accuracy': ['mean', 'std'],
                 'F1_Macro': ['mean', 'std'],
@@ -492,48 +559,48 @@ All neural network methods use the same unified architecture:
             }).round(4)
             
             f.write(avg_performance.to_markdown())
-            f.write("\n\n### Performance Ranking Analysis\n\n")
+            f.write("\n\n### 性能排名分析\n\n")
             
-            # Calculate simple averages for ranking
+            # 计算简单的平均值用于排名
             simple_avg = results_df.groupby('Method').agg({
                 'Accuracy': 'mean',
                 'F1_Macro': 'mean',
                 'Training_Time': 'mean'
             }).round(4)
             
-            # Accuracy ranking
+            # 按准确率排序
             acc_ranking = simple_avg.sort_values('Accuracy', ascending=False)
-            f.write("#### Accuracy Ranking\n\n")
+            f.write("#### 准确率排名\n\n")
             for i, (method, row) in enumerate(acc_ranking.iterrows(), 1):
                 emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 f.write(f"{emoji} **{method}**: {row['Accuracy']:.2%}\n")
             f.write("\n")
             
-            # F1-score ranking
+            # 按F1分数排序
             f1_ranking = simple_avg.sort_values('F1_Macro', ascending=False)
-            f.write("#### F1-Score Ranking\n\n")
+            f.write("#### F1分数排名\n\n")
             for i, (method, row) in enumerate(f1_ranking.iterrows(), 1):
                 emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 f.write(f"{emoji} **{method}**: {row['F1_Macro']:.2%}\n")
             f.write("\n")
             
-            # Training time ranking (faster is better)
+            # 按训练时间排序（越快越好）
             time_ranking = simple_avg.sort_values('Training_Time', ascending=True)
-            f.write("#### Training Efficiency Ranking (faster is better)\n\n")
+            f.write("#### 训练效率排名 (越快越好)\n\n")
             for i, (method, row) in enumerate(time_ranking.iterrows(), 1):
                 emoji = "🚀" if i == 1 else "⚡" if i == 2 else "💨" if i == 3 else f"{i}."
-                f.write(f"{emoji} **{method}**: {row['Training_Time']:.3f} seconds\n")
+                f.write(f"{emoji} **{method}**: {row['Training_Time']:.3f}秒\n")
             f.write("\n")
             
-            f.write(f"""## Key Findings: Impact of Cauchy Distribution Scale Parameters
+            f.write(f"""## 核心发现：柯西分布尺度参数的影响
 
-### Unified Architecture Method Comparison
+### 统一架构方法对比
 
-The core objective of this experiment is to verify the **impact of Cauchy distribution scale parameters** on classification performance. By using completely identical network architectures, we can accurately analyze the effects of different distribution choices.
+本实验的核心目标是验证**柯西分布尺度参数**对分类性能的影响。通过使用完全相同的网络架构，我们可以准确分析不同分布选择的效果。
 
 """)
             
-            # Analyze unified architecture methods
+            # 分析统一架构方法
             unified_methods = results_df[results_df['Method_Type'] == 'unified']
             if not unified_methods.empty:
                 unified_summary = unified_methods.groupby('Method').agg({
@@ -542,11 +609,11 @@ The core objective of this experiment is to verify the **impact of Cauchy distri
                     'Training_Time': 'mean'
                 }).round(4)
                 
-                f.write("#### Unified Architecture Method Performance Comparison\n\n")
+                f.write("#### 统一架构方法性能对比\n\n")
                 f.write(unified_summary.to_markdown())
                 f.write("\n\n")
             
-            # Compare with classical methods
+            # 与经典方法比较
             sklearn_methods = results_df[results_df['Method_Type'] == 'sklearn']
             if not sklearn_methods.empty:
                 sklearn_summary = sklearn_methods.groupby('Method').agg({
@@ -555,78 +622,78 @@ The core objective of this experiment is to verify the **impact of Cauchy distri
                     'Training_Time': 'mean'
                 }).round(4)
                 
-                f.write("### Comparison with Classical Machine Learning Methods\n\n")
+                f.write("### 与经典机器学习方法对比\n\n")
                 f.write(sklearn_summary.to_markdown())
                 f.write("\n\n")
             
-            # Conclusions and recommendations
-            f.write(f"""## Experimental Conclusions
+            # 结论和建议
+            f.write(f"""## 实验结论
 
-### Main Findings
+### 主要发现
 
-1. **Impact of Cauchy Distribution Scale Parameters**: 
-   - The effectiveness of Cauchy distribution parameters in unified architecture experiments requires further analysis based on specific dataset characteristics
-   - Different distribution choices (Cauchy vs Gaussian) show varying performance across different datasets
+1. **柯西分布尺度参数的作用**: 
+   - 在统一架构实验中，柯西分布参数的效果需要根据具体数据集特性进一步分析
+   - 不同分布选择(柯西vs高斯)在不同数据集上表现有差异
 
-2. **Method Applicability Analysis**:
-   - **High Accuracy Scenarios**: Random Forest and SVM show outstanding performance
-   - **Training Efficiency Scenarios**: Traditional machine learning methods train faster
-   - **Uncertainty Quantification Scenarios**: CAAC methods provide unique value
+2. **方法适用性分析**:
+   - **高准确率场景**: Random Forest和SVM表现突出
+   - **训练效率场景**: 传统机器学习方法训练更快
+   - **不确定性量化场景**: CAAC方法提供独特价值
 
-3. **Architecture Design Validation**:
-   - Unified architecture design ensures fair comparison
-   - Network depth and width settings are appropriate for small datasets
+3. **架构设计验证**:
+   - 统一架构设计确保了公平比较
+   - 网络深度和宽度设置对小数据集适当
 
-### Improvement Recommendations
+### 改进建议
 
-**Short-term Improvements**:
-1. Adjust network architecture parameters, optimizing for different dataset scales
-2. Implement more refined hyperparameter tuning
-3. Add data augmentation techniques
+**短期改进**:
+1. 调整网络架构参数，针对不同规模数据集优化
+2. 实施更精细的超参数调优
+3. 增加数据增强技术
 
-**Long-term Development**:
-1. Validate method scalability on large-scale datasets  
-2. Explore adaptive distribution selection mechanisms
-3. Develop real-time uncertainty quantification applications
+**长期发展**:
+1. 在大规模数据集上验证方法可扩展性  
+2. 探索自适应分布选择机制
+3. 开发实时不确定性量化应用
 
-### Use Case Recommendations
+### 适用场景推荐
 
-**Recommend CAAC OvR for**:
-- Critical decision scenarios requiring uncertainty quantification
-- High-risk applications like medical diagnosis, financial risk control
-- Methodological validation in research and education
+**推荐使用CAAC OvR**:
+- 需要不确定性量化的关键决策场景
+- 医疗诊断、金融风控等高风险应用
+- 研究和教学中的方法论验证
 
-**Recommend Traditional Methods for**:
-- Competition scenarios pursuing highest accuracy
-- Edge device deployment with limited computational resources
-- Rapid prototyping and baseline establishment
+**推荐使用传统方法**:
+- 追求最高准确率的竞赛场景
+- 计算资源受限的边缘设备部署
+- 快速原型开发和baseline建立
 
-## Visualization Results
+## 可视化结果
 
-The generated visualization charts include:
-- Accuracy comparison charts
-- F1-score comparison charts  
-- Training time comparison charts
-- Efficiency vs performance trade-off scatter plots
+实验生成的可视化图表包含：
+- 准确率对比图
+- F1分数对比图  
+- 训练时间对比图
+- 效率vs性能权衡散点图
 
-![Method Comparison Charts](./methods_comparison_english_{timestamp}.png)
+![方法比较图](./methods_comparison_english_{timestamp}.png)
 
-## Data Files
+## 数据文件
 
-- **Detailed Results**: `methods_comparison_detailed_{timestamp}.csv`
-- **Summary Statistics**: `methods_comparison_summary_{timestamp}.csv`
-- **Visualization Charts**: `methods_comparison_english_{timestamp}.png`
+- **详细结果**: `methods_comparison_detailed_{timestamp}.csv`
+- **汇总统计**: `methods_comparison_summary_{timestamp}.csv`
+- **可视化图表**: `methods_comparison_english_{timestamp}.png`
 
 ---
 
-**Experiment Configuration Information**:
-- Python Environment: base conda environment
-- Random Seed: 42 (ensures reproducibility)
-- Data Split: 80% training / 20% testing
-- Feature Standardization: StandardScaler
-- Early Stopping Strategy: patience=10, min_delta=0.0001
+**实验配置信息**:
+- Python环境: base conda环境
+- 随机种子: 42 (确保可重复性)
+- 数据分割: 80%训练 / 20%测试
+- 特征标准化: StandardScaler
+- 早停策略: patience=10, min_delta=0.0001
 
-*Report automatically generated by experiment script at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
+*报告由自动化实验脚本生成于 {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
 """)
         
         print(f"✅ Detailed report generated: {report_file.name}")
