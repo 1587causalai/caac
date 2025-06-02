@@ -11,6 +11,17 @@ on:
     paths:
       - 'docs/**'
 
+# 添加权限配置
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 并发控制，确保只有一个部署在进行
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
@@ -70,15 +81,20 @@ jobs:
         
         echo "✅ Documentation build completed"
     
+    - name: 📤 Setup Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/configure-pages@v4
+      
+    - name: 📦 Upload Pages artifact
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./docs
+        
     - name: 🚀 Deploy to GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs
-        enable_jekyll: false
-        cname: caac-docs.example.com  # 可选：自定义域名
-        commit_message: 🚀 Deploy documentation ${{ github.sha }}
+      id: deployment
+      uses: actions/deploy-pages@v4
         
     - name: 📊 Generate deployment report
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
