@@ -263,6 +263,19 @@ pip install torch scikit-learn matplotlib pandas numpy seaborn
 - **理论基础**: `docs/theory/motivation.md` - 数学原理和动机
 - **快速指南**: `QUICK_START.md` - 详细的使用说明
 
+## 引用
+
+如果您在研究中使用了CAAC模型，请引用我们的工作：
+
+```bibtex
+@misc{caac2025,
+  author = {Heyang Gong},
+  title = {CAAC: Cauchy Abduction Action Classification},
+  year = {2025},
+  howpublished = {\url{https://github.com/1587causalai/caac}}
+}
+```
+
 ## 许可证
 
 MIT License
