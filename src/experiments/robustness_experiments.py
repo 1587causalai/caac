@@ -133,24 +133,26 @@ class RobustnessExperimentRunner:
             raise ValueError(f"Unknown dataset: {dataset_name}")
         return self.dataset_loaders[dataset_name]()
     
-    def inject_label_noise(self, y, noise_level):
-        """Inject label noise into the target variable."""
+    def inject_label_noise(self, y, noise_level, noise_type='random_uniform'):
+        """
+        Inject label noise into the target variable using DataProcessor.
+        
+        Args:
+            y: Target labels
+            noise_level: Proportion of samples to corrupt (0.0-1.0)
+            noise_type: Type of noise injection strategy
+        
+        Returns:
+            y_noisy: Labels with noise injected
+        """
+        from data.data_processor import DataProcessor
+        
         if noise_level == 0:
             return y
         
-        y_noisy = y.copy()
-        n_samples = len(y)
-        n_noisy = int(n_samples * noise_level)
-        
-        # Randomly select samples to add noise to
-        noisy_indices = np.random.choice(n_samples, n_noisy, replace=False)
-        
-        # For each noisy sample, assign random label different from original
-        unique_labels = np.unique(y)
-        for idx in noisy_indices:
-            original_label = y_noisy[idx]
-            possible_labels = unique_labels[unique_labels != original_label]
-            y_noisy[idx] = np.random.choice(possible_labels)
+        y_noisy, noise_info = DataProcessor.inject_label_noise(
+            y, noise_level, noise_type, random_state=42
+        )
         
         return y_noisy
     

@@ -441,3 +441,153 @@ class DataProcessor:
         }
         
         return X_train_final, X_val_final, X_test, y_train_final, y_val_final, y_test, outlier_info
+
+    @staticmethod
+    def inject_label_noise(y, noise_level, noise_type='random_uniform', random_state=42):
+        """
+        向标签中注入噪声的统一接口
+        
+        Args:
+            y: 原始标签
+            noise_level: 噪声比例 (0.0-1.0)
+            noise_type: 噪声类型
+                - 'random_uniform': 随机均匀注入 - 随机选择非真实标签
+                - 'proportional': 按原始类别比例选择错误标签
+                - 'majority_bias': 偏向多数类的错误标签
+                - 'minority_bias': 偏向少数类的错误标签
+                - 'adjacent': 选择相邻标签（仅适用于有序标签）
+                - 'flip_pairs': 成对翻转（两个类别互相翻转）
+            random_state: 随机种子
+            
+        Returns:
+            y_noisy: 含噪声的标签
+            noise_info: 噪声注入信息
+        """
+        if noise_level == 0:
+            return y.copy(), {'noise_level': 0, 'noise_type': noise_type, 'changes': 0}
+        
+        np.random.seed(random_state)
+        
+        y_noisy = y.copy()
+        n_samples = len(y)
+        n_noisy = int(n_samples * noise_level)
+        
+        # 获取类别信息
+        unique_labels = np.unique(y)
+        n_classes = len(unique_labels)
+        
+        if n_classes < 2:
+            raise ValueError("Need at least 2 classes for label noise injection")
+        
+        # 计算类别分布
+        class_counts = {label: np.sum(y == label) for label in unique_labels}
+        total_samples = len(y)
+        
+        # 随机选择要添加噪声的样本
+        noisy_indices = np.random.choice(n_samples, n_noisy, replace=False)
+        
+        # 记录标签变化
+        label_changes = {}
+        
+        for idx in noisy_indices:
+            original_label = y_noisy[idx]
+            
+            if noise_type == 'random_uniform':
+                # 随机均匀注入：从其他标签中随机选择
+                possible_labels = unique_labels[unique_labels != original_label]
+                new_label = np.random.choice(possible_labels)
+                
+            elif noise_type == 'proportional':
+                # 按原始类别比例选择错误标签
+                other_labels = unique_labels[unique_labels != original_label]
+                other_counts = np.array([class_counts[label] for label in other_labels])
+                other_probs = other_counts / np.sum(other_counts)
+                new_label = np.random.choice(other_labels, p=other_probs)
+                
+            elif noise_type == 'majority_bias':
+                # 偏向多数类
+                majority_label = max(class_counts, key=class_counts.get)
+                if original_label == majority_label:
+                    # 如果原标签就是多数类，随机选择其他
+                    other_labels = unique_labels[unique_labels != original_label]
+                    new_label = np.random.choice(other_labels)
+                else:
+                    # 否则改为多数类
+                    new_label = majority_label
+                    
+            elif noise_type == 'minority_bias':
+                # 偏向少数类
+                minority_label = min(class_counts, key=class_counts.get)
+                if original_label == minority_label:
+                    # 如果原标签就是少数类，随机选择其他
+                    other_labels = unique_labels[unique_labels != original_label]
+                    new_label = np.random.choice(other_labels)
+                else:
+                    # 否则改为少数类
+                    new_label = minority_label
+                    
+            elif noise_type == 'adjacent':
+                # 相邻标签噪声（假设标签是有序的）
+                if len(unique_labels) > 2:
+                    # 找到当前标签在排序后的位置
+                    sorted_labels = np.sort(unique_labels)
+                    current_pos = np.where(sorted_labels == original_label)[0][0]
+                    
+                    # 选择相邻位置
+                    adjacent_positions = []
+                    if current_pos > 0:
+                        adjacent_positions.append(current_pos - 1)
+                    if current_pos < len(sorted_labels) - 1:
+                        adjacent_positions.append(current_pos + 1)
+                    
+                    if adjacent_positions:
+                        chosen_pos = np.random.choice(adjacent_positions)
+                        new_label = sorted_labels[chosen_pos]
+                    else:
+                        # 如果没有相邻标签，随机选择
+                        other_labels = unique_labels[unique_labels != original_label]
+                        new_label = np.random.choice(other_labels)
+                else:
+                    # 只有两个类别，直接翻转
+                    other_labels = unique_labels[unique_labels != original_label]
+                    new_label = other_labels[0]
+                    
+            elif noise_type == 'flip_pairs':
+                # 成对翻转（主要针对二分类）
+                if n_classes == 2:
+                    # 二分类直接翻转
+                    other_labels = unique_labels[unique_labels != original_label]
+                    new_label = other_labels[0]
+                else:
+                    # 多分类情况下，随机配对翻转
+                    other_labels = unique_labels[unique_labels != original_label]
+                    new_label = np.random.choice(other_labels)
+                    
+            else:
+                raise ValueError(f"Unknown noise_type: {noise_type}")
+            
+            y_noisy[idx] = new_label
+            
+            # 记录标签变化
+            if original_label not in label_changes:
+                label_changes[original_label] = {}
+            if new_label not in label_changes[original_label]:
+                label_changes[original_label][new_label] = 0
+            label_changes[original_label][new_label] += 1
+        
+        # 计算噪声后的类别分布
+        new_class_counts = {label: np.sum(y_noisy == label) for label in unique_labels}
+        
+        noise_info = {
+            'noise_level': noise_level,
+            'noise_type': noise_type,
+            'total_samples': n_samples,
+            'noisy_samples': n_noisy,
+            'noisy_indices': noisy_indices,
+            'label_changes': label_changes,
+            'original_distribution': class_counts,
+            'new_distribution': new_class_counts,
+            'changes': len(noisy_indices)
+        }
+        
+        return y_noisy, noise_info
