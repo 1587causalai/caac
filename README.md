@@ -188,23 +188,6 @@ python run_experiments.py --interactive   # 交互式实验设计
 - **批量大小**: 64  
 - **训练轮数**: 150（含早停机制，patience=15）
 
-### 快速测试配置
-- **表征维度 (representation_dim)**: 128
-- **潜在因果向量维度 (latent_dim)**: 128
-- **特征网络结构**: input_dim → [64] → 128
-- **推断网络结构**: 128 → [128, 64] → {location_head:64→128, scale_head:64→128}
-- **学习率**: 0.001
-- **批量大小**: 32
-- **训练轮数**: 100（含早停机制，patience=10）
-
-### 方法对比配置（基础版本）
-- **表征维度 (representation_dim)**: 64
-- **潜在因果向量维度 (latent_dim)**: 64
-- **特征网络结构**: input_dim → [64] → 64
-- **推断网络结构**: 64 → [128, 64] → {location_head:64→64, scale_head:64→64}
-- **学习率**: 0.001
-- **批量大小**: 32
-- **训练轮数**: 100（含早停机制，patience=10）
 
 ### 高级功能配置
 - **可学习阈值 (learnable_thresholds)**: False（默认）

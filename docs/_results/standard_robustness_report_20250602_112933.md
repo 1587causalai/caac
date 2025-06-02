@@ -33,6 +33,7 @@
 - **因果推理网络**: 表征维度 → 因果参数
 - **决策网络**: 因果参数 → 类别得分
 
+
 ### 测试数据集
 
 - **Iris数据集**: 标准机器学习基准数据集
@@ -357,3 +358,47 @@
 
 ---
 *报告由CAAC鲁棒性实验运行器自动生成*
+
+
+## 附录：网络结构
+
+
+
+```mermaid
+graph TD
+    A["Input: $x ∈ ℝ^d$"] --> B
+    
+    subgraph FN ["特征网络 (FeatureNetwork)"]
+        B["$x → [64] → representation_dim$"]
+        B --> C["Representation: $z ∈ ℝ^{repr}$"]
+    end
+    
+    C --> D
+    
+    subgraph AN ["推断网络 (AbductionNetwork)"]
+        D["$z → [128, 64] → 共享特征$"]
+        D --> E1["Location Head: $64 → latent_dim$"]
+        D --> E2["Scale Head: $64 → latent_dim$"]
+        E1 --> F1["$μ(z) ∈ ℝ^{latent}$"]
+        E2 --> F2["$σ(z) ∈ ℝ^{latent}$"]
+    end
+    
+    F1 --> G["$U ∼ Cauchy(μ(z), σ(z))$"]
+    F2 --> G
+    
+    G --> H
+    
+    subgraph ACN ["行动网络 (ActionNetwork)"]
+        H["**核心线性变换**<br/>$S_k = ∑ A_{kj} × U_j + B_k$"]
+        H --> I["$S_k ∼ Cauchy(loc_k, scale_k)$"]
+    end
+    
+    I --> J["$P_k = P(S_k > C_k)$<br/>柯西CDF计算"]
+    J --> K["类别概率 $P_k(z)$"]
+    
+    style FN fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style AN fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px  
+    style ACN fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style G fill:#ffeb3b,stroke:#f57f17,stroke-width:3px
+    style H fill:#f44336,color:#fff,stroke:#d32f2f,stroke-width:3px
+```
