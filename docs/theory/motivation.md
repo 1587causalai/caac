@@ -49,7 +49,7 @@
 
 柯西分布是一种连续概率分布，其概率密度函数 (PDF) 和累积分布函数 (CDF) 形式简洁。
 其 CDF 为：
-$F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\gamma}\right)$
+$$F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\gamma}\right)$$
 其中 $x_0$ 是**位置参数**，表示分布的峰值位置；$\gamma$ 是**尺度参数**，表示分布的宽度。
 
 **柯西分布的特点：**
@@ -65,26 +65,26 @@ $F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\ga
 
 1.  **特征提取 (Feature Extraction):**
     给定原始输入数据 $x \in \mathbb{R}^D$，首先通过一个深度神经网络骨干 $f(\cdot)$ 提取其高维确定性特征表示 $z \in \mathbb{R}^L$：
-    $z = f(x)$
+    $$z = f(x)$$
 
 2.  **潜在柯西随机向量参数学习 (Latent Cauchy Random Vector Parameter Learning):**
     神经网络的输出层将特征 $z$ 映射为**一个 $M$ 维潜在柯西随机向量 $\mathbf{U} = (U_1, \dots, U_M)$** 的参数。我们假设 $\mathbf{U}$ 的各个分量是独立的柯西随机变量。
     对于每个潜在分量 $U_j \in \{1, \dots, M\}$，神经网络会预测其位置参数 $\mu_j(z)$ 和尺度参数 $\sigma_j(z)$。这些参数通常由骨干网络后的独立线性层学习：
-    $\mu_j(z) = \mathbf{W}_{\mu_j} z + \mathbf{b}_{\mu_j}$
-    $\sigma_j(z) = \exp(\mathbf{W}_{\sigma_j} z + \mathbf{b}_{\sigma_j})$
+    $$\mu_j(z) = \mathbf{W}_{\mu_j} z + \mathbf{b}_{\mu_j}$$
+    $$\sigma_j(z) = \exp(\mathbf{W}_{\sigma_j} z + \mathbf{b}_{\sigma_j})$$
     因此，每个潜在分量 $U_j$ 遵循柯西分布：$U_j \sim \text{Cauchy}(\mu_j(z), \sigma_j(z))$。
     （注：$\exp(\cdot)$ 函数确保尺度参数 $\sigma_j(z)$ 始终为严格正值，避免除零错误或数值不稳定。）
 
 3.  **线性变换到类别得分随机变量 (Linear Transformation to Class Score Random Variables):**
     为了从共享的潜在表示中推导出每个类别的得分，我们定义一个可学习的线性变换。这个变换将 $M$ 维的潜在柯西随机向量 $\mathbf{U}$ 映射到 $N$ 个类别的**得分随机变量向量 $\mathbf{S} = (S_1, \dots, S_N)$**。
     这个线性变换由一个可学习的权重矩阵 $\mathbf{A} \in \mathbb{R}^{N \times M}$ 和一个可学习的偏置向量 $\mathbf{B} \in \mathbb{R}^N$ 构成：
-    $\mathbf{S} = \mathbf{A}\mathbf{U} + \mathbf{B}$
+    $$\mathbf{S} = \mathbf{A}\mathbf{U} + \mathbf{B}$$
     展开来看，对于每个类别 $k \in \{1, \dots, N\}$，其得分随机变量 $S_k$ 是潜在分量 $U_j$ 的线性组合：
-    $S_k = \sum_{j=1}^M A_{kj} U_j + B_k$
+    $$S_k = \sum_{j=1}^M A_{kj} U_j + B_k$$
 
 4.  **得分随机变量 $S_k$ 的柯西分布性质与参数推导：**
     根据柯西分布的性质，**独立柯西随机变量的线性组合仍然是柯西随机变量。** 这一关键特性使得我们可以为每个类别得分随机变量 $S_k$ 定义其自身的柯西分布参数：
-    $S_k \sim \text{Cauchy}(\text{loc}(S_k; z), \text{scale}(S_k; z))$
+    $$S_k \sim \text{Cauchy}(\text{loc}(S_k; z), \text{scale}(S_k; z))$$
     其中，对于每个类别 $k$：
     *   **位置参数 (location parameter)：** $\text{loc}(S_k; z) = \sum_{j=1}^M A_{kj} \mu_j(z) + B_k$
     *   **尺度参数 (scale parameter)：** $\text{scale}(S_k; z) = \sum_{j=1}^M |A_{kj}| \sigma_j(z)$
@@ -93,13 +93,13 @@ $F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\ga
 5.  **每类别判决概率计算 (Per-Class Decision Probability):**
     为每个类别 $k$ 预设一个**固定阈值 $C_k \in \mathbb{R}$** (例如，所有 $C_k = 0$)。这个阈值定义了判决的"分界线"。
     样本属于类别 $k$ 的概率 $P_k(z)$ 定义为得分随机变量 $S_k$ 超过阈值 $C_k$ 的概率，利用柯西分布的 CDF 计算：
-    $P_k(z) = P(S_k > C_k \mid z) = 1 - F(C_k; \text{loc}(S_k; z), \text{scale}(S_k; z))$
-    $P_k(z) = \frac{1}{2} - \frac{1}{\pi} \arctan\left(\frac{C_k - \text{loc}(S_k; z)}{\text{scale}(S_k; z)}\right)$
+    $$P_k(z) = P(S_k > C_k \mid z) = 1 - F(C_k; \text{loc}(S_k; z), \text{scale}(S_k; z))$$
+    $$P_k(z) = \frac{1}{2} - \frac{1}{\pi} \arctan\left(\frac{C_k - \text{loc}(S_k; z)}{\text{scale}(S_k; z)}\right)$$
     （为确保数值稳定性，在计算 $\arctan$ 时，分母 $\text{scale}(S_k; z)$ 应加上一个极小的正数 $\epsilon$，例如 $10^{-6}$。）
 
 6.  **损失函数 (Loss Function)：**
     沿用 One-vs-Rest (OvR) 策略的二元交叉熵 (BCE) 损失。对于每个训练样本 $(x_i, y_i^{true})$，将其真实标签转换为 $N$ 个二元标签 $y_{ik}^{binary}$ ($1$ 如果 $y_i^{true}=k$ 否则 $0$)。总损失是所有类别二分类器损失的总和：
-    $L_{total} = - \frac{1}{M} \sum_{i=1}^M \sum_{k=1}^N \left[ y_{ik}^{binary} \log(P_k(z_i)) + (1 - y_{ik}^{binary}) \log(1 - P_k(z_i)) \right]$
+    $$L_{total} = - \frac{1}{M} \sum_{i=1}^M \sum_{k=1}^N \left[ y_{ik}^{binary} \log(P_k(z_i)) + (1 - y_{ik}^{binary}) \log(1 - P_k(z_i)) \right]$$
 
     此外，为了鼓励模型在单个潜在向量实例化时的决策唯一性（即，对于某个从 $\mathbf{U}$ 中抽取的样本 $\mathbf{u}$，只有一个类别的得分 $S_k(\mathbf{u})$ 超过其阈值 $C_k$），我们可以考虑在损失函数中加入一个额外的惩罚项。这个约束，即 $\sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) = 1$，旨在确保对于任意给定的潜在柯西向量实例 $\mathbf{u}$，其通过线性变换后得到的得分向量 $\mathbf{s}=(s_1, \dots, s_N)$ 应恰好只有一个分量 $s_k$ 大于其对应的阈值 $C_k$。
 
@@ -110,22 +110,22 @@ $F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\ga
 
     2.  **计算类别得分 (Class Score Calculation based on Sampled Latent Vector):**
         基于采样的潜在向量 $\mathbf{u}$，通过线性变换计算每个类别 $k$ 的实际得分 $S_k(\mathbf{u})$：
-        $S_k(\mathbf{u}) = \sum_{j=1}^M A_{kj} u_j + B_k$
+        $$S_k(\mathbf{u}) = \sum_{j=1}^M A_{kj} u_j + B_k$$
 
     3.  **唯一性决策惩罚项 (Uniqueness Decision Penalty):**
         为了确保每个采样的潜在向量实例 $\mathbf{u}$ 只激活一个类别，我们推荐使用**最大-次大间隔约束**。这种方法不仅保证决策唯一性，还通过建立清晰的决策间隔增强模型的鲁棒性。
         
         具体实现：使用 `torch.topk(scores, 2)` 找到最大的两个得分 $S_{max}(\mathbf{u})$ 和 $S_{2nd}(\mathbf{u})$，以及它们对应的类别索引。惩罚项定义为：
-        $L_{uniqueness}(\mathbf{u}) = \max(0, C_{k_{max}} - S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}) - C_{k_{2nd}})$
+        $$L_{uniqueness}(\mathbf{u}) = \max(0, C_{k_{max}} - S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}) - C_{k_{2nd}})$$
         
         简化版本（当所有 $C_k = 0$ 时）：
-        $L_{uniqueness}(\mathbf{u}) = \max(0, -S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}))$
+        $$L_{uniqueness}(\mathbf{u}) = \max(0, -S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}))$$
         
         此惩罚项确保最高得分超过其阈值（成为"赢家"），而第二高得分低于其阈值，从而实现清晰的"winner-take-all"决策机制。
 
     4.  **组合损失函数 (Combined Loss Function):**
         最终的损失函数是标准 BCE 损失 $L_{total}$ 和唯一性惩罚项 $L_{uniqueness}$ 的加权和：
-        $L_{final} = L_{total} + \lambda L_{uniqueness}$
+        $$L_{final} = L_{total} + \lambda L_{uniqueness}$$
         其中 $\lambda > 0$ 是一个超参数，用于平衡原始分类任务和决策唯一性约束之间的重要性。
 
     引入此惩罚项的关键优势：
@@ -144,7 +144,7 @@ $F(x; x_0, \gamma) = \frac{1}{2} + \frac{1}{\pi} \arctan\left(\frac{x - x_0}{\ga
 
 我们注意到，存在一种强约束，即对于任何给定样本的潜在柯西向量实例 $\mathbf{u}$，其通过线性变换后得到的得分向量 $\mathbf{s}=(s_1, \dots, s_N)$ 应**恰好只有一个分量 $s_k$ 大于其对应的阈值 $C_k$**，而所有其他 $s_j$ ($j \neq k$) 都小于或等于其阈值 $C_j$。数学表示为：
 
-$\sum_{k=1}^N \mathbf{I}(S_k > C_k \mid \mathbf{U}=\mathbf{u}) = 1$
+$$\sum_{k=1}^N \mathbf{I}(S_k > C_k \mid \mathbf{U}=\mathbf{u}) = 1$$
 
 其中 $\mathbf{I}(\cdot)$ 是指示函数。
 
@@ -163,14 +163,17 @@ $\sum_{k=1}^N \mathbf{I}(S_k > C_k \mid \mathbf{U}=\mathbf{u}) = 1$
 
 如前所述，为了鼓励模型在单个潜在向量采样实例 $\mathbf{u}$ 上满足决策唯一性约束 $\sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) = 1$，我们需要设计相应的损失函数。本节将深入比较几种有前景的方案，从最直接的硬约束到更复杂的间隔优化，每种都有其独特的数学性质和训练动态。
 
+**重要转变**：我们不约束每个样本的决策唯一性，而是监控每个样本的决策唯一性，这是项目初期非常合适的选择。
+
+
 **方案1：直接硬判决约束 (Direct Hard Decision Constraint)**
 
 这是最直接、最本质的方案，直接强制要求对于任意采样的潜在向量实例 $\mathbf{u}$，有且仅有一个类别的得分超过其对应阈值：
 
-$L_{uniqueness}^{hard}(\mathbf{u}) = \left| \sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) - 1 \right|$
+$$L_{uniqueness}^{hard}(\mathbf{u}) = \left| \sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) - 1 \right|$$
 
 或者使用平方损失形式：
-$L_{uniqueness}^{hard}(\mathbf{u}) = \left( \sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) - 1 \right)^2$
+$$L_{uniqueness}^{hard}(\mathbf{u}) = \left( \sum_{k=1}^N \mathbf{I}(S_k(\mathbf{u}) > C_k) - 1 \right)^2$$
 
 **核心思想：** 确保激活类别数量恰好为1，既不允许多重激活，也不允许无激活。
 
@@ -187,10 +190,10 @@ $L_{uniqueness}^{hard}(\mathbf{u}) = \left( \sum_{k=1}^N \mathbf{I}(S_k(\mathbf{
 
 对方案1进行软化，使用Sigmoid函数来近似指示函数，使其可微且适合梯度优化：
 
-$H(x; \beta) = \text{sigmoid}(\beta x) = \frac{1}{1 + \exp(-\beta x)}$
+$$H(x; \beta) = \text{sigmoid}(\beta x) = \frac{1}{1 + \exp(-\beta x)}$$
 
 惩罚项定义为：
-$L_{uniqueness}^{sigmoid}(\mathbf{u}) = \left( \sum_{k=1}^N H(S_k(\mathbf{u}) - C_k; \beta) - 1 \right)^2$
+$$L_{uniqueness}^{sigmoid}(\mathbf{u}) = \left( \sum_{k=1}^N H(S_k(\mathbf{u}) - C_k; \beta) - 1 \right)^2$$
 
 其中 $\beta > 0$ 是控制Sigmoid函数陡峭程度的超参数。当 $\beta \to \infty$ 时，$H(x; \beta) \to \mathbf{I}(x > 0)$。
 
@@ -214,10 +217,10 @@ $L_{uniqueness}^{sigmoid}(\mathbf{u}) = \left( \sum_{k=1}^N H(S_k(\mathbf{u}) - 
 使用 `torch.topk(scores, 2)` 直接找到最大的两个得分：$S_{max}(\mathbf{u})$ 和 $S_{2nd}(\mathbf{u})$，以及它们对应的类别索引 $k_{max}$ 和 $k_{2nd}$。
 
 间隔约束定义为：
-$L_{uniqueness}^{margin}(\mathbf{u}) = \max(0, C_{k_{max}} - S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}) - C_{k_{2nd}})$
+$$L_{uniqueness}^{margin}(\mathbf{u}) = \max(0, C_{k_{max}} - S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}) - C_{k_{2nd}})$$
 
 **简化版本（假设所有 $C_k = 0$）：**
-$L_{uniqueness}^{margin-simple}(\mathbf{u}) = \max(0, -S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}))$
+$$L_{uniqueness}^{margin-simple}(\mathbf{u}) = \max(0, -S_{max}(\mathbf{u})) + \max(0, S_{2nd}(\mathbf{u}))$$
 
 即：要求最高得分为正值，第二高得分为负值。
 
@@ -318,7 +321,7 @@ $L_{uniqueness}^{margin-simple}(\mathbf{u}) = \max(0, -S_{max}(\mathbf{u})) + \m
 *   **借用 OvR 模型的“中心判断”作为 Softmax 的输入**：
     在 OvR 柯西模型中，我们为每个类别 $k$ 计算了其得分随机变量 $S_k$ 的位置参数 $\text{loc}(S_k; z)$，这可以被理解为模型对样本属于类别 $k$ 的“中心判断值”或“原始得分”。
     理论上，您可以提取这些 $\text{loc}(S_k; z)$ 值，并将它们作为传统 Softmax 函数的输入（即 logits）：
-    $P'_{softmax, k}(z) = \frac{\exp(\text{loc}(S_k; z))}{\sum_{j=1}^N \exp(\text{loc}(S_j; z))}$
+    $$P'_{\text{softmax}, k}(z) = \frac{\exp(\text{loc}(S_k; z))}{\sum_{j=1}^N \exp(\text{loc}(S_j; z))}$$
     在这种情况下，OvR 柯西模型（直到计算出 $\text{loc}(S_k; z)$ 的部分）就扮演了一个为 Softmax 生成 logits 的复杂特征提取器的角色。此时，原模型中的尺度参数 $\text{scale}(S_k; z)$ 和基于柯西 CDF 的概率计算 $P_k(z)$ 将被旁路。
 
 这种“模拟”方式，实际上是将 OvR 模型的一部分嵌入到 Softmax 框架中。而 OvR 柯西模型本身的设计目标是提供一个功能更丰富（如不确定性量化）的分类范式。
